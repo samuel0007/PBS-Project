@@ -1,0 +1,27 @@
+Liquid Liquid interaction with explosion
+(Explosion under water)
+
+Style transfer maybe 2d
+
+Oriented particles (3rd)
+
+Discrete shells
+
+Discrete viscious sheets (2nd)
+
+Elephant toothpaste (1st) or in general fluid /fluid like
+Color mixing / reaction
+Explosion
+Cement formation
+Air bubbles
+
+
+
+Non-newtonian fluid
+
+Preparation:
+Plan
+Questions to ask TA
+Papers, references,
+On Github, upload papers with summary sentence
+What libraries we can use (maybe ask TA)
