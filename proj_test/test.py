@@ -4,19 +4,19 @@ from scipy.integrate import solve_ivp
 import numpy as np
 ti.init(arch=ti.gpu)
 
-N = 1000
+N = 400
 
 # Global constants
 # Hint: It's quite hard to find constants s.t. the diffusion works stabily. If the simulation turns all black, reduce support radius
-K = 20.
+K = 10.
 mu = 50.
 mass = 0.012
-support_radius = 0.03
+support_radius = 0.045
 radius = 0.01
 rest_density = 1000
 diffusion_coeff = 1e12
-dt = 4e-2 / N
-gravity = ti.Vector([0, -9.8, 0])
+dt = 6e-4
+gravity = ti.Vector([0, -13, 0])
 substeps = int(1 / 180 // dt)
 total_frames = 100
 
@@ -36,41 +36,30 @@ pressure = ti.field(dtype=ti.f32, shape=N)
 a = ti.Vector.field(3, dtype=ti.f32, shape=N)
 # fill temperature with random values
 
-# SPH Kernel function
+# SPH Poly6 Kernel function
 @ti.func
-def W(r_vec: ti.types.vector(3, ti.f32), h):
-    r = r_vec.norm()
-    value = 0.
-    if r < h:
-        value = 315 / (64 * math.pi * h**9) * (h**2 - r**2)**3
-    return value
+def W(r_len, h):
+    return  (315. / (64. * math.pi * h**9)) * (h**2 - r_len**2)**3
 
-# SPH Kernel gradient
+# SPH Pressure Spiky Kernel Gradient
 @ti.func
-def gradW(r: ti.types.vector(3, ti.f32), h):
-    q = r.norm() / h
-    value = ti.Vector([0, 0, 0], ti.f32)
-    if q < 1:
-        value = -45. / (math.pi * h**6) * (h - r.norm())**2 * r.normalized()
-    return value
+def gradW(r_len, h):
+    value = -(90. / (math.pi * h**6)) * (h - r_len)**2 * r_len
+    return ti.Vector([value, value, value], ti.f32)
 
-# SPH Kernel Laplacian
+# SPH Viscosity Kernel Laplacian
 @ti.func
-def laplW(r, h):
-    q = r / h
-    value = 0.
-    if q < 1:
-        value = (45. / math.pi * h**6) * (h - r)
-    return value
-
+def laplW(r_len, h):
+    return (45. / math.pi * h**6) * (h - r_len)
+        
 @ti.kernel
 def initialize_fluid_particles():
     for particle in X:
-        X[particle] = [ti.random()*0.25, ti.random(), 1]
-        # half of the particles have some random velocity to the left
-        # V[particle] = [0, 0]
+        X[particle] = [0.2 + ti.random()*0.3, 0.5 + ti.random()*0.5, 1]
+        V[particle] = [0, 0, 0]
 
-        V[particle] = [ti.random()*0.1-0.1, 0, 0]
+        # half of the particles have some random velocity to the left
+        # V[particle] = [ti.random()*0.1-0.1, 0, 0]
         M[particle] = mass
         T[particle] = ti.random()*max_temp
         density[particle] = rest_density
@@ -88,8 +77,11 @@ def update_density(particle):
     density[particle] = 0
     for other in range(N):
         r = X[particle] - X[other]
-        density[particle] += M[other] * W(r, support_radius)
+        r_len = r.norm()
+        if r_len <= support_radius:
+            density[particle] += M[other] * W(r_len, support_radius)
     return density[particle]
+
 # function returning the updated temperature attribute of each particle
 @ti.func
 def update_temperature(particle):
@@ -97,9 +89,11 @@ def update_temperature(particle):
     for other in range(N):
         r = X[particle] - X[other]
         r_len = r.norm()
-        derivate_temperature += M[other] * (T[other] - T[particle])/density[other] * laplW(r_len, support_radius)
+        if r_len <= support_radius:
+            derivate_temperature += M[other] * (T[other] - T[particle])/density[other] * laplW(r_len, support_radius)
     derivate_temperature *= diffusion_coeff
     T[particle] += derivate_temperature * dt
+
 # function updating color according to temperature
 @ti.func
 def update_color(particle):
@@ -116,9 +110,9 @@ def force(particle: ti.i32) -> ti.types.vector(2, ti.f32):
         if other != particle:
             r = X[particle] - X[other]
             r_len = r.norm()
-            if r_len < support_radius:
+            if r_len <= support_radius:
                 # pressure force
-                force -= M[other] * (pressure[particle] + pressure[other]) / (2.*density[other]) * gradW(r, support_radius)
+                force -= M[other] * (pressure[particle] + pressure[other]) / (2.*density[other]) * gradW(r_len, support_radius)
                 # viscosity force
                 force += mu * M[other] * (V[other] - V[particle]) / density[other] * laplW(r_len, support_radius)
     # add gravity
@@ -147,22 +141,22 @@ def substep():
         # Check for boundaries in 3d
         if X[i][0] < 0:
             X[i][0] = 0
-            V[i][0] = 0
-        if X[i][0] > 0.5:
-            X[i][0] = 0.5
-            V[i][0] = 0
+            V[i][0] *= -1
+        if X[i][0] > 1:
+            X[i][0] = 1
+            V[i][0] *= -1
         if X[i][1] < 0:
             X[i][1] = 0
-            V[i][1] = 0
-        if X[i][1] > 0.5:
-            X[i][1] = 0.5
+            V[i][1] *= -1
+        if X[i][1] > 1:
+            X[i][1] = 1
             V[i][1] = 0
         if X[i][2] < 0:
             X[i][2] = 0
-            V[i][2] = 0
-        if X[i][2] > 0.5:
-            X[i][2] = 0.5
-            V[i][2] = 0
+            V[i][2] *= -1
+        if X[i][2] > 1:
+            X[i][2] = 1
+            V[i][2] *= -1
 
 
 window = ti.ui.Window("Taichi Fluid Particle Simulation", (1024, 1024),
@@ -176,7 +170,7 @@ camera = ti.ui.Camera()
 current_t = 0.0
 
 initialize_fluid_particles()
-camera_pos = [0.5, 0.5, 2]
+camera_pos = [1, 1, 3]
 # while window.running:
 for j in range(total_frames):
     if current_t > 100:
@@ -209,8 +203,41 @@ for j in range(total_frames):
     # print(T)
     # print(T_normalized)
     scene.particles(centers=X, radius=radius, per_vertex_color=colors)
+    # draw bounds
+    bounds = ti.Vector.field(3, ti.f32, 24)
+    bounds[0] = [0, 0, 0]
+    bounds[1] = [1, 0, 0]
+    bounds[2] = [1, 0, 0]
+    bounds[3] = [1, 1, 0]
+    bounds[4] = [1, 1, 0]
+    bounds[5] = [0, 1, 0]
+    bounds[6] = [0, 1, 0]
+    bounds[7] = [0, 0, 0]
+    bounds[8] = [0, 0, 0]
+    bounds[9] = [0, 0, 1]
+    bounds[10] = [0, 0, 1]
+    bounds[11] = [1, 0, 1]
+    bounds[12] = [1, 0, 1]
+    bounds[13] = [1, 1, 1]
+    bounds[14] = [1, 1, 1]
+    bounds[15] = [0, 1, 1]
+    bounds[16] = [0, 1, 1]
+    bounds[17] = [0, 1, 0]
+    bounds[18] = [1, 0, 0]
+    bounds[19] = [1, 0, 1]
+    bounds[20] = [1, 1, 0]
+    bounds[21] = [1, 1, 1]
+    bounds[22] = [0, 1, 0]
+    bounds[23] = [0, 1, 1]
+
+
+
+
+
+    scene.lines(bounds, 1)
     canvas.scene(scene)
     video_manager.write_frame(window.get_image_buffer_as_numpy())
+
     window.show()
     print(f'\rFrame {j+1}/{total_frames} is recorded', end='')
 
