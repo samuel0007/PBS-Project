@@ -1,37 +1,44 @@
 import taichi as ti
 import math
 import numpy as np
+
 ti.init(arch=ti.gpu)
 
 # Simulation constants
 EXPORT_COLOR_FIELD = False
-EXPORT_FRAMES = True
-N = 100
+EXPORT_FRAMES = False
+N = 600
 resolution = 24
 dt = 6e-4
 substeps = int(1 / 60 // dt)
-total_frames = 100
+total_frames = 1000
 camera_pos = [2.5, 3.5, 3]
 
 x_bound = 0.75
-y_bound = 2
+y_bound = 0.5
 z_bound = 0.75
+
+bottom_heat_bound = 0.2
+top_heat_bound = 0.4
+
+heating_coefficient = 10
+cooling_coefficient = 10
 
 result_dir = "./results"
 
 # Global Physical Constants
 # Hint: It's quite hard to find constants s.t. the diffusion works stabily. If the simulation turns all black, reduce support radius
-K = 8.
+K = 20.
 mu = 50.
-surface_constant = 2
-buoyancy_coefficient = 0.5
+surface_constant = 1.
+buoyancy_coefficient = 0.
 gravity = ti.Vector([0, -9.81, 0])
-boundary_damping_coeff = 0.25
+boundary_damping_coeff = 0.
 mass = 0.012
 radius = 0.015
-support_radius = 0.045
+support_radius = 0.065
 alpha = 10000
-diffusion_coeff = 7e12
+diffusion_coeff = 5e12
 max_temp = 100
 
 # Data orientied particles informations
@@ -56,9 +63,8 @@ def W(r_len, h):
 
 # SPH Pressure Spiky Kernel Gradient
 @ti.func
-def gradW(r_len, h):
-    value = -(90. / (math.pi * h**6)) * (h - r_len)**2 * r_len
-    return ti.Vector([value, value, value], ti.f32)
+def gradW(r, r_len, h):
+    return -(45. / (math.pi * h**6)) * (h - r_len)**2 * r / r_len
 
 # SPH Viscosity Kernel Laplacian
 @ti.func
@@ -73,7 +79,7 @@ def laplW_poly6(r_len, h):
 @ti.kernel
 def initialize_fluid_particles():
     for particle in X:
-        X[particle] = [ti.random()*0.5, 1 + ti.random()*0.5, ti.random()*0.5]
+        X[particle] = [ti.random()*0.5, ti.random()*0.5, ti.random()*0.5]
         V[particle] = [0, 0, 0]
 
         # half of the particles have some random velocity to the left
@@ -109,7 +115,7 @@ def update_color_field(particle):
         r_len = r.norm()
         if r_len <= support_radius:
             color_field[particle] += M[other] / density[other] * W(r_len, support_radius)
-            color_field_gradient[particle] += M[other] / density[other] * gradW(r_len, support_radius)
+            color_field_gradient[particle] += M[other] / density[other] * gradW(r, r_len, support_radius)
             color_field_laplacian[particle] += M[other] / density[other] * laplW_poly6(r_len, support_radius)
         
 
@@ -124,10 +130,21 @@ def update_temperature(particle):
             derivate_temperature += M[other] * (T[other] - T[particle])/density[other] * laplW(r_len, support_radius)
     derivate_temperature *= diffusion_coeff
     T[particle] += derivate_temperature * dt
+@ti.func
+def update_boundary_temperature(particle):
+    # Heat particle if at the boundary on the bottom, and cool it if on the top
+    if X[particle][1] < bottom_heat_bound:
+        if T[particle] < max_temp:
+            T[particle] += heating_coefficient * dt
+    elif X[particle][1] > top_heat_bound:
+        if T[particle] > cooling_coefficient * dt + 1e-5:
+            T[particle] += cooling_coefficient * dt
+
 
 @ti.func
 def update_rest_density(particle):
     rest_density[particle] = alpha / T[particle]
+
 # function updating color according to temperature
 @ti.func
 def update_color(particle):
@@ -144,7 +161,7 @@ def force(particle: ti.i32) -> ti.types.vector(2, ti.f32):
             r_len = r.norm()
             if r_len <= support_radius:
                 # pressure force
-                force -= M[other] * (pressure[particle] + pressure[other]) / (2.*density[other]) * gradW(r_len, support_radius)
+                force -= M[other] * (pressure[particle] + pressure[other]) / (2.*density[other]) * gradW(r, r_len, support_radius)
                 # viscosity force
                 force += mu * M[other] * (V[other] - V[particle]) / density[other] * laplW(r_len, support_radius)    
     # add surface tension force
@@ -200,6 +217,8 @@ def substep():
             X[i][2] = z_bound
             V[i][2] *= -boundary_damping_coeff
 
+        update_boundary_temperature(i)
+
 @ti.func
 def evaluate_color_field(r) -> ti.f32:
     color_field_value = 0.
@@ -214,7 +233,6 @@ def compute_color_field():
     for i, j, k in color_field_values:
         color_field_values[i, j, k] = evaluate_color_field(color_field_mesh[i, j, k])
 
-# build mesh and export it
 @ti.kernel
 def build_mesh():
     for i, j, k in color_field_mesh:
@@ -275,24 +293,18 @@ initialize_fluid_particles()
 color_field_mesh = ti.Vector.field(3, ti.f32, shape=(10, 10, 10))
 color_field_values = ti.field(ti.f32, shape=(10, 10, 10))
 
-build_mesh()
-export_mesh()
+if EXPORT_COLOR_FIELD:
+    build_mesh()
+    export_mesh()
 
 # while window.running:
 for l in range(total_frames):
-    if current_t > 100:
-        # Reset
-        initialize_fluid_particles()
-        current_t = 0
-
     for i in range(substeps):
         substep()
         current_t += dt
-    
     camera.position(*camera_pos)
     camera.lookat(0.0, 0.0, 0)
     scene.set_camera(camera)
-
     scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
     scene.ambient_light((0.5, 0.5, 0.5))
     # Draw particles with each a different color
