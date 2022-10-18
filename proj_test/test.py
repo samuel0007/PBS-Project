@@ -5,6 +5,7 @@ import numpy as np
 ti.init(arch=ti.gpu)
 
 N = 2000
+resolution = 24
 
 # Global constants
 # Hint: It's quite hard to find constants s.t. the diffusion works stabily. If the simulation turns all black, reduce support radius
@@ -21,6 +22,10 @@ dt = 6e-4
 gravity = ti.Vector([0, -30, 0])
 substeps = int(1 / 180 // dt)
 total_frames = 1000
+
+x_bound = 0.75
+y_bound = 2
+z_bound = 0.75
 
 result_dir = "./results"
 video_manager = ti.tools.VideoManager(output_dir=result_dir, framerate=24, automatic_build=False)
@@ -40,7 +45,6 @@ color_field_gradient = ti.Vector.field(3, dtype=ti.f32, shape=N)
 color_field_laplacian = ti.field(dtype=ti.f32, shape=N)
 
 a = ti.Vector.field(3, dtype=ti.f32, shape=N)
-# fill temperature with random values
 
 # SPH Poly6 Kernel function
 @ti.func
@@ -179,20 +183,20 @@ def substep():
         if X[i][0] < 0:
             X[i][0] = 0
             V[i][0] *= -1
-        if X[i][0] > 0.75:
-            X[i][0] = 0.75
+        if X[i][0] > x_bound:
+            X[i][0] = x_bound
             V[i][0] *= -1
         if X[i][1] < 0:
             X[i][1] = 0
             V[i][1] *= -1
-        if X[i][1] > 2:
-            X[i][1] = 2
+        if X[i][1] > y_bound:
+            X[i][1] = y_bound
             V[i][1] *= -1
         if X[i][2] < 0:
             X[i][2] = 0
             V[i][2] *= -1
-        if X[i][2] > 0.75:
-            X[i][2] = 0.75
+        if X[i][2] > z_bound:
+            X[i][2] = z_bound
             V[i][2] *= -1
 
 @ti.func
@@ -203,8 +207,6 @@ def evaluate_color_field(r) -> ti.f32:
         if r_len <= support_radius:
             color_field_value += M[particle] / density[particle] * W(r_len, support_radius)
     return color_field_value
-
-
 
 
 window = ti.ui.Window("Taichi Fluid Particle Simulation", (1024, 1024),
@@ -247,25 +249,29 @@ bounds[23] = [0, 1, 0.75]
 initialize_fluid_particles()
 camera_pos = [1, 3, 3]
 
-resolution = 5
 color_field_mesh = ti.Vector.field(3, ti.f32, shape=(10, 10, 10))
-color_field_values = ti.Vector.field(3, ti.f32, shape=(10, 10, 10))
+color_field_values = ti.field(ti.f32, shape=(10, 10, 10))
 
-# build mesh
+# build mesh and export it
 @ti.kernel
 def build_mesh():
-    resolution_double = ti.cast(resolution, ti.f32)
     for i, j, k in color_field_mesh:
-        color_field_mesh[i, j, k] = ti.Vector([i/(resolution*2), j/resolution, k/(resolution*2)], ti.f32)
+        color_field_mesh[i, j, k] = ti.Vector([i/resolution * x_bound, j/resolution * y_bound, k/resolution * z_bound], ti.f32)
+
+def export_mesh():
+    np.save("results/frames_data/color_field_mesh.npy", color_field_mesh.to_numpy())
 
 build_mesh()
+export_mesh()
 
 @ti.kernel
 def compute_color_field():
     for i, j, k in color_field_values:
-        r = color_field_mesh[i, j, k]
-        value = 1-evaluate_color_field(r)
-        color_field_values[i, j, k] = ti.Vector([value, value, value], ti.f32)
+        color_field_values[i, j, k] = evaluate_color_field(color_field_mesh[i, j, k])
+
+
+def export_color_field(frame_idx: ti.i32):
+    np.save("results/frames_data/color_field_{:04d}.npy".format(frame_idx), color_field_values.to_numpy())
 
 
 # while window.running:
@@ -279,10 +285,6 @@ for l in range(total_frames):
         substep()
         current_t += dt
     
-    # update_vertices()
-
-    # Camera rotates
-    # camera_pos[0] = 3 + 3 * math.sin(current_t)
 
     camera.position(*camera_pos)
     camera.lookat(0.0, 0.0, 0)
@@ -291,18 +293,15 @@ for l in range(total_frames):
     scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
     scene.ambient_light((0.5, 0.5, 0.5))
     # Draw particles with each a different color
-    # print(color_field_laplacian)
-    # print(T)
-    # print(T_normalized)
     scene.particles(centers=X, radius=radius, per_vertex_color=colors)
     # Plot color field on a grid
     # color_particle_pos = ti.Vector.field(3, ti.f32, 10*10*10)
     # color_particle_color = ti.Vector.field(3, ti.f32, 10*10*10)
 
     # print("color field computations...")
-    # compute_color_field()
+    compute_color_field()
     # print("finished color field computations")
-
+    export_color_field(l)
     # print("flatten...")
     # # flatten color field values and mesh
     # color_field_mesh_flatten = ti.Vector.field(3, ti.f32, shape=(resolution*resolution*resolution))
