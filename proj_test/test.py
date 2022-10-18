@@ -6,23 +6,24 @@ ti.init(arch=ti.gpu)
 
 # Simulation constants
 EXPORT_COLOR_FIELD = False
-EXPORT_FRAMES = False
-N = 600
+EXPORT_FRAMES = True
+N = 1500
 resolution = 24
 dt = 6e-4
 substeps = int(1 / 60 // dt)
 total_frames = 1000
-camera_pos = [2.5, 3.5, 3]
+camera_pos = [3, 5, 3]
+camera_look_at = [0, 2, 0]
 
 x_bound = 0.75
-y_bound = 0.5
+y_bound = 3.5
 z_bound = 0.75
 
-bottom_heat_bound = 0.2
-top_heat_bound = 0.4
+bottom_heat_bound = 0.1
+top_heat_bound = 0.45
 
-heating_coefficient = 10
-cooling_coefficient = 10
+heating_coefficient = 8.
+cooling_coefficient = 1.
 
 result_dir = "./results"
 
@@ -31,15 +32,15 @@ result_dir = "./results"
 K = 20.
 mu = 50.
 surface_constant = 1.
-buoyancy_coefficient = 0.
+buoyancy_coefficient = 3.5
 gravity = ti.Vector([0, -9.81, 0])
-boundary_damping_coeff = 0.
+boundary_damping_coeff = 0.5
 mass = 0.012
-radius = 0.015
+radius = 0.018
 support_radius = 0.065
 alpha = 10000
-diffusion_coeff = 5e12
-max_temp = 100
+diffusion_coeff = 1e12
+max_temp = 120
 
 # Data orientied particles informations
 X = ti.Vector.field(3, dtype=ti.f32, shape=N)
@@ -149,7 +150,7 @@ def update_rest_density(particle):
 @ti.func
 def update_color(particle):
     # Map temperature to 0-1 range
-    colors[particle] = [T[particle] / max_temp, 0, 0]
+    colors[particle] = [T[particle]/max_temp, 0, 0]
 
 # function returning the force on each particle
 @ti.func
@@ -303,7 +304,7 @@ for l in range(total_frames):
         substep()
         current_t += dt
     camera.position(*camera_pos)
-    camera.lookat(0.0, 0.0, 0)
+    camera.lookat(*camera_look_at)
     scene.set_camera(camera)
     scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
     scene.ambient_light((0.5, 0.5, 0.5))
