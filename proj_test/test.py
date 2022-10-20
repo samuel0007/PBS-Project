@@ -6,41 +6,45 @@ ti.init(arch=ti.gpu)
 
 # Simulation constants
 EXPORT_COLOR_FIELD = False
-EXPORT_FRAMES = True
-N = 1500
+EXPORT_FRAMES = False
+N = 2000
 resolution = 24
-dt = 6e-4
-substeps = int(1 / 60 // dt)
-total_frames = 1000
-camera_pos = [3, 5, 3]
-camera_look_at = [0, 2, 0]
+dt = 5e-4
+r_tol = 1e-8
+epsilon = 1e-5
+substeps = int(1 / 180 // dt)
+print(substeps)
+total_frames = 2000
+camera_pos = [7, 3, 7]
+camera_look_at = [0, 3, 0]
 
 x_bound = 0.75
-y_bound = 3.5
+y_bound = 6
 z_bound = 0.75
 
 bottom_heat_bound = 0.1
 top_heat_bound = 0.45
 
-heating_coefficient = 8.
-cooling_coefficient = 1.
+heating_coefficient = 0.
+cooling_coefficient = 0.
 
 result_dir = "./results"
 
 # Global Physical Constants
 # Hint: It's quite hard to find constants s.t. the diffusion works stabily. If the simulation turns all black, reduce support radius
-K = 20.
+K = 2.
 mu = 50.
-surface_constant = 1.
-buoyancy_coefficient = 3.5
+surface_constant = 0.
+buoyancy_coefficient = 0.
 gravity = ti.Vector([0, -9.81, 0])
-boundary_damping_coeff = 0.5
+boundary_damping_coeff = 0.
 mass = 0.012
 radius = 0.018
 support_radius = 0.065
-alpha = 10000
-diffusion_coeff = 1e12
-max_temp = 120
+alpha = 130000
+diffusion_coeff = 0.
+max_temp = 50
+amb_temp = 15
 
 # Data orientied particles informations
 X = ti.Vector.field(3, dtype=ti.f32, shape=N)
@@ -54,8 +58,10 @@ pressure = ti.field(dtype=ti.f32, shape=N)
 color_field = ti.field(dtype=ti.f32, shape=N)
 color_field_gradient = ti.Vector.field(3, dtype=ti.f32, shape=N)
 color_field_laplacian = ti.field(dtype=ti.f32, shape=N)
-
 a = ti.Vector.field(3, dtype=ti.f32, shape=N)
+lambdas = ti.field(dtype=ti.f32, shape=N)
+density_contraint = ti.field(dtype=ti.f32, shape=N)
+
 
 # SPH Poly6 Kernel function
 @ti.func
@@ -84,18 +90,19 @@ def initialize_fluid_particles():
         V[particle] = [0, 0, 0]
 
         # half of the particles have some random velocity to the left
-        # V[particle] = [ti.random()*0.1-0.1, 0, 0]
         M[particle] = mass
-        T[particle] = ti.random()*max_temp
-        rest_density[particle] = alpha/T[particle]
+        # T[particle] = ti.random()*max_temp
+        T[particle] = 10
+        # rest_density[particle] = alpha/ (T[particle]+273.15)
+        rest_density[particle] = 800
         density[particle] = rest_density[particle]
         a[particle] = [0, 0, 0]
 
 
-# function reutrning the density of each particle
 @ti.func
 def update_pressure(particle):
-    pressure[particle] = K * (density[particle] - rest_density[particle])
+    new_pressure = K * (density[particle] - rest_density[particle])
+    pressure[particle] = new_pressure if new_pressure < 0 else 0
 
 @ti.func
 def update_density(particle):
@@ -103,8 +110,10 @@ def update_density(particle):
     for other in range(N):
         r = X[particle] - X[other]
         r_len = r.norm()
-        if r_len <= support_radius:
+        if r_tol < r_len and r_len <= support_radius:
             density[particle] += M[other] * W(r_len, support_radius)
+    if density[particle] < 100:
+        density[particle] = 100
 
 @ti.func
 def update_color_field(particle):
@@ -114,7 +123,7 @@ def update_color_field(particle):
     for other in range(N):
         r = X[particle] - X[other]
         r_len = r.norm()
-        if r_len <= support_radius:
+        if r_tol < r_len and r_len <= support_radius:
             color_field[particle] += M[other] / density[other] * W(r_len, support_radius)
             color_field_gradient[particle] += M[other] / density[other] * gradW(r, r_len, support_radius)
             color_field_laplacian[particle] += M[other] / density[other] * laplW_poly6(r_len, support_radius)
@@ -127,30 +136,63 @@ def update_temperature(particle):
     for other in range(N):
         r = X[particle] - X[other]
         r_len = r.norm()
-        if r_len <= support_radius:
+        # Avoid division by zero
+        if r_tol < r_len and r_len <= support_radius:
             derivate_temperature += M[other] * (T[other] - T[particle])/density[other] * laplW(r_len, support_radius)
     derivate_temperature *= diffusion_coeff
     T[particle] += derivate_temperature * dt
+
 @ti.func
 def update_boundary_temperature(particle):
-    # Heat particle if at the boundary on the bottom, and cool it if on the top
-    if X[particle][1] < bottom_heat_bound:
+    # Heat particle if at the boundary on the center of the bottom, and cool it if on the top
+    if X[particle][1] < bottom_heat_bound and X[particle][0] < 0.3 and X[particle][0] > 0.2 and X[particle][2] < 0.3 and X[particle][2] > 0.2:
         if T[particle] < max_temp:
             T[particle] += heating_coefficient * dt
     elif X[particle][1] > top_heat_bound:
         if T[particle] > cooling_coefficient * dt + 1e-5:
-            T[particle] += cooling_coefficient * dt
-
+            T[particle] -= cooling_coefficient * dt
 
 @ti.func
 def update_rest_density(particle):
-    rest_density[particle] = alpha / T[particle]
+    # rest_density[particle] = alpha / (T[particle]+273.15)
+    rest_density[particle] = 800
 
 # function updating color according to temperature
 @ti.func
 def update_color(particle):
     # Map temperature to 0-1 range
     colors[particle] = [T[particle]/max_temp, 0, 0]
+
+@ti.func
+def update_lambda(particle):
+    lambdas[particle] = 1. - density[particle] / rest_density[particle] 
+    gradient_sum = 0.
+    for other in range(N):
+        if(other != particle):
+            r = X[particle] - X[other]
+            r_len = r.norm()
+            if r_tol < r_len and r_len <= support_radius:
+                gradient_sum -= gradW(r, r_len, support_radius)
+        r = X[particle] - X[other]
+        r_len = r.norm()
+        if r_len <= support_radius:
+            lambdas[particle] += (M[other] / density[other]) * (gradW(r, r_len, support_radius) @ color_field_gradient[particle])
+    lambdas[particle] = -1 / (color_field_laplacian[particle] + lambdas[particle])
+
+@ti.func
+def update_attributes(i):
+    # -- Should be optimized by only iterating once through the particles --
+    # Update density
+    update_density(i)
+    # Update pressure for each particle
+    update_pressure(i)
+    # Update color field
+    update_color_field(i)
+    # diffusion of attributes
+    update_temperature(i)
+    update_rest_density(i)
+    update_color(i)
+    # update_lambda(i)
 
 # function returning the force on each particle
 @ti.func
@@ -160,37 +202,49 @@ def force(particle: ti.i32) -> ti.types.vector(2, ti.f32):
         if other != particle:
             r = X[particle] - X[other]
             r_len = r.norm()
-            if r_len <= support_radius:
+            if r_tol < r_len and r_len <= support_radius:
                 # pressure force
                 force -= M[other] * (pressure[particle] + pressure[other]) / (2.*density[other]) * gradW(r, r_len, support_radius)
                 # viscosity force
                 force += mu * M[other] * (V[other] - V[particle]) / density[other] * laplW(r_len, support_radius)    
     # add surface tension force
     color_field_gradient_norm = color_field_gradient[particle].norm()
-    if color_field_gradient_norm > 1e-6:
+    if color_field_gradient_norm > 1e-3:
         force -= surface_constant * color_field_laplacian[particle] * color_field_gradient[particle] / color_field_gradient_norm                
 
     # add buoyancy force
-    force += buoyancy_coefficient * (density[particle] - rest_density[particle]) * gravity
+    # force += buoyancy_coefficient * (amb_temp - T[particle]) * gravity
     # add gravity
     force += gravity * density[particle]
     return force
+
+@ti.func
+def enforce_boundary(i):
+    if X[i][0] < 0:
+        X[i][0] = 0 + epsilon*ti.random()
+        V[i][0] *= -boundary_damping_coeff
+    if X[i][0] > x_bound:
+        X[i][0] = x_bound + epsilon*ti.random()
+        V[i][0] *= -boundary_damping_coeff
+    if X[i][1] < 0:
+        X[i][1] = 0 + epsilon*ti.random()
+        V[i][1] *= -boundary_damping_coeff
+    if X[i][1] > y_bound:
+        X[i][1] = y_bound + epsilon*ti.random()
+        V[i][1] *= -boundary_damping_coeff
+    if X[i][2] < 0:
+        X[i][2] = 0 + epsilon*ti.random()
+        V[i][2] *= -boundary_damping_coeff
+    if X[i][2] > z_bound:
+        X[i][2] = z_bound + epsilon*ti.random()
+        V[i][2] *= -boundary_damping_coeff
 
 @ti.kernel
 def substep():
     # The for loop iterates over all elements of the field v
     for i in X:
-        # Update density
-        update_density(i)
-        # Update pressure for each particle
-        update_pressure(i)
-        # Update color field
-        update_color_field(i)
-
-        # diffusion of attributes
-        update_temperature(i)
-        update_rest_density(i)
-        update_color(i)
+        # Update attributes
+        update_attributes(i)
 
         # leapfrog integration of the force
         new_acc = force(i) / density[i]
@@ -198,26 +252,7 @@ def substep():
         X[i] += V[i] * dt + 0.5 * a[i] * dt**2
         a[i] = new_acc
         
-        # Check for boundaries in 3d
-        if X[i][0] < 0:
-            X[i][0] = 0
-            V[i][0] *= -boundary_damping_coeff
-        if X[i][0] > x_bound:
-            X[i][0] = x_bound
-            V[i][0] *= -boundary_damping_coeff
-        if X[i][1] < 0:
-            X[i][1] = 0
-            V[i][1] *= -boundary_damping_coeff
-        if X[i][1] > y_bound:
-            X[i][1] = y_bound
-            V[i][1] *= -boundary_damping_coeff
-        if X[i][2] < 0:
-            X[i][2] = 0
-            V[i][2] *= -boundary_damping_coeff
-        if X[i][2] > z_bound:
-            X[i][2] = z_bound
-            V[i][2] *= -boundary_damping_coeff
-
+        enforce_boundary(i)
         update_boundary_temperature(i)
 
 @ti.func
@@ -317,7 +352,7 @@ for l in range(total_frames):
 
     if EXPORT_COLOR_FIELD:
         export_color_field(l)
-
+    print(np.average(T.to_numpy()), np.average(density.to_numpy()), np.average(rest_density.to_numpy()))
     canvas.scene(scene)
     if EXPORT_FRAMES:
         video_manager.write_frame(window.get_image_buffer_as_numpy())
