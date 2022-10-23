@@ -40,7 +40,26 @@ Might be usefull looking at applying some drag due to air friction when the flui
 
 https://www.sciencedirect.com/science/article/pii/S0097849317301541
 
+## SPH multiple fluids using mixture model
+
+Multiple-Fluid SPH Simulation Using a Mixture Model
+
 ## Opensource Library for SPH based on Eigen, implements nearly all the methods described in the papers above
 
 https://splishsplash.readthedocs.io/en/latest/about.html
+
+## Tool for Surface/Volume sampling
+
+Surface sampling used for boundary conditions.
+
+Volume sampling used for initial conditions.
+
+https://splishsplash.readthedocs.io/en/latest/SurfaceSampling.html
+https://splishsplash.readthedocs.io/en/latest/VolumeSampling.html
+
+# SplishSplash Interesting files
+
+## SPHKernels.h
+
+Contains common SPH kernels as well as their gradients.
 
