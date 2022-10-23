@@ -1,6 +1,5 @@
 import taichi as ti
-from baseFluidModel import FluidModel
-from kernel import Poly6
+from .kernel import Poly6
 
 @ti.data_oriented
 class BoundaryModel:

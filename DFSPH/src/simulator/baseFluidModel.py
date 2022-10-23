@@ -1,6 +1,6 @@
 import numpy
 import taichi as ti
-from kernel import Poly6, Spiky
+from .kernel import Poly6, Spiky
 
 @ti.data_oriented
 class FluidModel:
@@ -26,7 +26,7 @@ class FluidModel:
 
     @ti.kernel
     def explicit_update_position(self, dt: ti.f32):
-        for i in self.X:
+        for i in range(self.num_particles):
             self.X[i] += self.V[i] * dt
 
     # Dumb O(n^2) neighbor search, replace with grid based later
