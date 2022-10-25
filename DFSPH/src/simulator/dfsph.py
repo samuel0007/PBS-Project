@@ -7,11 +7,23 @@ class DensityAndPressureSolver:
         self.num_particles = num_particles
         self.divergenceSolver = DivergenceSolver(num_particles)
         self.densitySolver = DensitySolver(num_particles)
+
+        # set alpha_i reference in both solvers
         self.alpha_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
+        self.divergenceSolver.alpha_i = self.alpha_i
+        self.densitySolver.alpha_i = self.alpha_i
+
         self.poly6 = Poly6(support_radius)
         self.spiky = Spiky(support_radius)
 
         self.eps = 1e-6
+
+    # def update_alpha_i(self, f_X: ti.template(), f_M: ti.f32, f_density: ti.template(), f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template()):
+        # self.compute_alpha_i(f_X, f_M, f_density, f_neighbors, b_X, b_M, b_neighbors)
+
+        # set alpha_i in both solvers, operation has to be done in python scope
+        # self.divergenceSolver.alpha_i = self.alpha_i
+        # self.densitySolver.alpha_i = self.alpha_i
 
     @ti.kernel    
     def update_alpha_i(self, f_X: ti.template(), f_M: ti.f32, f_density: ti.template(), f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template()):
@@ -33,10 +45,7 @@ class DensityAndPressureSolver:
                     denom_norm_sum += value.norm_sqr()
             
             self.alpha_i[i] = f_density[i] / (denom_grad_sum.norm_sqr() + denom_norm_sum + self.eps)
-        
-        # set alpha_i in both solvers
-        self.divergenceSolver.alpha_i = self.alpha_i
-        self.densitySolver.alpha_i = self.alpha_i
+        print(self.alpha_i[0])
 
 class DivergenceSolver:
     def __init__(self, num_particles: ti.i32):

@@ -2,7 +2,7 @@ import taichi as ti
 import numpy as np
 import glob
 
-CAMERA_POS = [1, 1, 1]
+CAMERA_POS = [2, 2, 2]
 CAMERA_LOOK_AT = [0., 0., 0.]
 
 class Renderer:
@@ -69,7 +69,6 @@ class Renderer:
             scene.point_light(pos=(0, 1, 2), color=(1, 1, 1))
             scene.ambient_light((0.5, 0.5, 0.5))
             particles_data = np.load(self.files[l])
-            print(particles_data)
             particles = ti.Vector.field(3, ti.f32, len(particles_data))
             particles.from_numpy(particles_data)
             scene.particles(centers=particles, radius=self.radius)

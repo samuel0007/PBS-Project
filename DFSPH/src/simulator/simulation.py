@@ -38,8 +38,13 @@ class Simulation:
     def prolog(self):
         self.init_non_pressure_forces()
         self.fluid.set_boundary_particles(self.boundary.X, self.boundary.M)
-        self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
 
+        self.fluid.update_neighbors()
+        self.fluid.update_density()
+
+        self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
+        print(self.densityAndPressureSolver.alpha_i)
+        print(self.densityAndPressureSolver.densitySolver.alpha_i)
     def step(self):
         # Explicitly Apply non pressure forces
         self.apply_non_pressure_forces()
@@ -98,6 +103,7 @@ class Simulation:
 
     def frame_export(self):
         np.save(self.result_dir + f"frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy())
+        np.save(self.result_dir + f"frame_{self.current_frame_id}_B.npy", self.fluid.b_X.to_numpy())
 
     def save(self):
         np.save(self.result_dir + "results.npy", self.fluid.X.to_numpy())
