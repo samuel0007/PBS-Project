@@ -40,6 +40,10 @@ Might be usefull looking at applying some drag due to air friction when the flui
 
 https://www.sciencedirect.com/science/article/pii/S0097849317301541
 
+## MLS_localPressureBoundaries
+
+Boundary method that claims to be better than Akinci et al.
+
 ## SPH multiple fluids using mixture model
 
 Multiple-Fluid SPH Simulation Using a Mixture Model
