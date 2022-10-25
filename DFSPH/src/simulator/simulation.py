@@ -13,7 +13,7 @@ class Simulation:
         self.num_particles = num_particles
         self.max_time = max_time
         self.is_frame_export = is_frame_export
-        self.dt = 1e-3
+        self.dt = 1e-4
         self.current_time = 0.
         self.current_frame_id = 0
         self.time_since_last_frame_export = 0.
@@ -50,7 +50,6 @@ class Simulation:
         self.fluid.update_neighbors()
         self.fluid.update_density()
         self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
-
         np.save(self.result_dir + "boundary.npy", self.fluid.b_X.to_numpy())
 
     def step(self):
@@ -83,8 +82,8 @@ class Simulation:
     @ti.kernel
     def init_non_pressure_forces(self):
         for i in range(self.num_particles):
-            self.non_pressure_forces[i] = ti.Vector([0., 0., 0.], ti.f32)
-            # self.non_pressure_forces[i] = ti.Vector([0., -9.8, 0.], ti.f32)
+            # self.non_pressure_forces[i] = ti.Vector([0., 0., 0.], ti.f32)
+            self.non_pressure_forces[i] = ti.Vector([0., -0.98, 0.], ti.f32)
 
     @ti.kernel
     def apply_non_pressure_forces(self):
@@ -95,7 +94,7 @@ class Simulation:
     def set_initial_fluid_condition(self):  
         delta = self.radius * 1.1
         num_particles_x = int(self.num_particles**(1. / 3.))
-        offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, 0, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
+        offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5,  (self.bounds - num_particles_x * delta) * 0.9, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
 
         for i in range(num_particles_x):
             for j in range(num_particles_x):
@@ -109,7 +108,7 @@ class Simulation:
             self.step()
             if self.is_frame_export:
                 self.time_since_last_frame_export += self.dt
-                if self.time_since_last_frame_export > 1. / 60.:
+                if self.time_since_last_frame_export > 1. / 180.:
                     self.frame_export()
                     self.time_since_last_frame_export = 0.
                     self.current_frame_id += 1
@@ -119,7 +118,7 @@ class Simulation:
         self.save()
 
     def log_state(self):
-        print(f"Current Time: {self.current_time}, dt: {self.dt}, {self.time_since_last_frame_export}", end="\r")
+        print(f"Current Time: {self.current_time}, dt: {self.dt}", end="\r")
 
     def frame_export(self):
         np.save(self.result_dir + f"frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy())
