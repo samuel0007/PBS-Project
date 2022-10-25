@@ -3,7 +3,7 @@ from .kernel import Poly6
 
 @ti.data_oriented
 class BoundaryModel:
-    def __init__(self, bounds: ti.f32, support_radius: ti.f32, resolution=0.1):
+    def __init__(self, bounds: ti.f32, support_radius: ti.f32, resolution=0.01):
         self.bounds = bounds
         self.support_radius = support_radius
         self.resolution = resolution

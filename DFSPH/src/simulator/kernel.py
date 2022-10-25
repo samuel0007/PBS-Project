@@ -45,6 +45,6 @@ class Spiky:
     def W_grad(self, r: ti.types.vector(3, ti.f32)) -> ti.types.vector(3, ti.f32):
         res = ti.Vector([0., 0., 0.])
         r_norm = r.norm()
-        if r_norm**2 < self.support_radius2:
+        if r_norm > 1e-6 and r_norm**2 < self.support_radius2:
             res = self.l * (self.support_radius - r_norm)**2 * r / r_norm
         return res

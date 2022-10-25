@@ -2,28 +2,41 @@ import taichi as ti
 import numpy as np
 import glob
 
-CAMERA_POS = [2, 2, 2]
 CAMERA_LOOK_AT = [0., 0., 0.]
-
+#TODO: draw boundary particles according to their pseudomass at each frame
 class Renderer:
-    def __init__(self, bounds: ti.f32, result_dir: str, radius: ti.f32, max_frame = -1):
+    def __init__(self, bounds: ti.f32, result_dir: str, radius: ti.f32, max_frame=-1, render_boundary=False, SHOW=True, framerate=24):
         self.bounds = bounds
         self.x_bound = bounds
         self.y_bound = bounds
         self.z_bound = bounds
 
+        # self.CAMERA_POS = [1.2*self.x_bound, 1.2*self.y_bound, 1.2*self.z_bound]
+        self.CAMERA_POS = [0.5, 0.5, 0.5]
+        self.render_boundary = render_boundary
+
         self.radius = radius
+        
+        self.framerate = framerate
+        self.SHOW = SHOW
 
         # All the files from results folder
-        self.files = glob.glob(result_dir+'*.npy')
+        self.files = glob.glob(result_dir+'frame_*.npy')
+
+        if render_boundary:
+            b_particles_data = np.load(result_dir+'boundary.npy')
+            self.b_particles = ti.Vector.field(3, ti.f32, len(b_particles_data))
+            self.b_particles.from_numpy(b_particles_data)
         
         if max_frame == -1:
             self.max_frame = len(self.files)
         else:
             self.max_frame = max_frame
 
+        self.video_manager = ti.tools.VideoManager(output_dir=result_dir, framerate=24, automatic_build=False)
 
-    def show(self):
+
+    def render(self):
         window = ti.ui.Window("Taichi Fluid Particle Simulation", (1024, 1024),
                             vsync=True)
 
@@ -62,7 +75,7 @@ class Renderer:
         bounds[23] = [self.x_bound, self.y_bound, self.z_bound]
 
         for l in range(self.max_frame):
-            camera.position(*CAMERA_POS)
+            camera.position(*self.CAMERA_POS)
             camera.lookat(*CAMERA_LOOK_AT)
             scene.set_camera(camera)
 
@@ -71,17 +84,13 @@ class Renderer:
             particles_data = np.load(self.files[l])
             particles = ti.Vector.field(3, ti.f32, len(particles_data))
             particles.from_numpy(particles_data)
-            scene.particles(centers=particles, radius=self.radius)
+            scene.particles(centers=particles, radius=self.radius, color=(0.2, 0.5, 0.8))
+            if self.render_boundary:
+                scene.particles(centers=self.b_particles, radius=self.radius, color=(0.5, 0.5, 0.5))
+
             scene.lines(bounds, 1)
             canvas.scene(scene)
             print("Frame: ", l, end="\r")
-            window.show()
-
-
-    # Has to be implemented
-    def render_frame(self, frame: int):
-        pass
-
-
-    def render(self):
-        pass
+            self.video_manager.write_frame(window.get_image_buffer_as_numpy())
+            if self.SHOW:
+                window.show()
