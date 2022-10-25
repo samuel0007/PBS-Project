@@ -17,7 +17,7 @@ RADIUS = pow(MASS/(REST_DENSITY*4./3.*math.pi), 1./3.)
 # Run Simulation
 ti.init(arch=ti.gpu)
 simulation = Simulation(NUM_PARTICLES, MAX_TIME, mass=MASS, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR)
-# simulation.run()
+simulation.run()
 
 # Render Simulation
 renderer = Renderer(bounds=BOUNDS, result_dir=RESULT_DIR, radius=RADIUS)

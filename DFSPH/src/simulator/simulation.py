@@ -24,9 +24,10 @@ class Simulation:
             mass=mass
         )
         self.boundary = BoundaryModel(bounds, self.fluid.support_radius)
-        self.boundary.compute_mass(self.fluid.density0)
+        self.boundary.compute_M(self.fluid.density0)
+        self.boundary.expose()
 
-        self.densityAndPressureSolver = DensityAndPressureSolver(num_particles)
+        self.densityAndPressureSolver = DensityAndPressureSolver(num_particles, self.fluid.support_radius)
         self.viscositySolver = ViscositySolver(num_particles)
 
         self.non_pressure_forces = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
@@ -36,7 +37,8 @@ class Simulation:
 
     def prolog(self):
         self.init_non_pressure_forces()
-        self.densityAndPressureSolver.update_alpha_i()
+        self.fluid.set_boundary_particles(self.boundary.X, self.boundary.M)
+        self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
 
     def step(self):
         # Explicitly Apply non pressure forces
@@ -52,7 +54,7 @@ class Simulation:
         # Prepare Divergence Free Solver
         self.fluid.update_neighbors()
         self.fluid.update_density()
-        self.densityAndPressureSolver.update_alpha_i()
+        self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
 
         # Divergence Free Solver
         self.fluid.V = self.densityAndPressureSolver.divergenceSolver.solve(self.fluid.V)

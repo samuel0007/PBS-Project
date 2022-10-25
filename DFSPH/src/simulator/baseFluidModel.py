@@ -13,9 +13,15 @@ class FluidModel:
         self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.density = ti.field(dtype=ti.f32, shape=(self.num_particles))
-        self.neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
+        self.f_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
         self.poly6 = Poly6(self.support_radius)
         self.spiky = Spiky(self.support_radius)
+
+    def set_boundary_particles(self, b_X, b_M):
+        self.b_num_particles = b_X.shape[0]
+        self.b_X = b_X
+        self.b_M = b_M
+        self.b_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.b_num_particles))
 
     @ti.kernel
     def CFL_condition(self) -> ti.f32:
@@ -36,10 +42,16 @@ class FluidModel:
             local_pos = self.X[i]
             for j in range(self.num_particles):
                 if (local_pos - self.X[j]).norm() < self.support_radius:
-                    self.neighbors[i, j] = 1
+                    self.f_neighbors[i, j] = 1
                 else:
-                    self.neighbors[i, j] = 0
-        
+                    self.f_neighbors[i, j] = 0
+
+            for j in range(self.b_num_particles):
+                if (local_pos - self.b_X[j]).norm() < self.support_radius:
+                    self.b_neighbors[i, j] = 1
+                else:
+                    self.b_neighbors[i, j] = 0
+            
     @ti.kernel
     def update_density(self):
         for i in range(self.num_particles):
@@ -47,6 +59,10 @@ class FluidModel:
             local_pos = self.X[i]
             # This is the dumbest datastructure ever, but for now... let it be
             for j in range(self.num_particles):
-                if self.neighbors[i, j] == 1:
+                if self.f_neighbors[i, j] == 1:
                     density += self.mass * self.poly6.W(local_pos - self.X[j])
+            for j in range(self.b_num_particles):
+                if self.b_neighbors[i, j] == 1:
+                    density += self.b_M[j] * self.poly6.W(local_pos - self.b_X[j])
+
             self.density[i] = density
