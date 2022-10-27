@@ -21,9 +21,9 @@ class FluidModel:
         self.num_x_cells = int(np.ceil((self.x_max - self.x_min)/self.support_radius))
         self.num_y_cells = int(np.ceil((self.y_max - self.y_min)/self.support_radius))
         self.num_z_cells = int(np.ceil((self.z_max - self.z_min)/self.support_radius))
-        print((self.num_x_cells, self.num_y_cells, self.num_z_cells))
+        # print((self.num_x_cells, self.num_y_cells, self.num_z_cells))
 
-        self.neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
+        # self.neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
 
         #I couldn't find a way to use an array as a dtype. Now, there is a maximal number of particles that can occupy any cell.
         self.max_particles_per_cell = int(32)
@@ -31,8 +31,7 @@ class FluidModel:
         self.particles_in_cell = ti.field(dtype = ti.i32, shape = (self.num_x_cells, self.num_y_cells, self.num_z_cells))
                                                                     
 
-
-        print(type(self.num_x_cells))
+        # print(type(self.num_x_cells))
 
         self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
@@ -72,8 +71,21 @@ class FluidModel:
                     self.f_neighbors[i, j] = 1
                     f_count += 1
                 else:
-                    self.neighbors[i, j] = 0
-    
+                    self.f_neighbors[i, j] = 0
+            self.f_number_of_neighbors[i] = f_count
+
+            b_count = 0
+            for j in range(self.b_num_particles):
+                if (local_pos - self.b_X[j]).norm() < self.support_radius:
+                    self.b_neighbors[i, j] = 1
+                    b_count += 1
+                else:
+                    self.b_neighbors[i, j] = 0
+            self.b_number_of_neighbors[i] = b_count
+
+            self.number_of_neighbors[i] = f_count + b_count
+            
+
     @ti.kernel
     def update_grid(self):
         """places particle indices into the cell according to their position"""
