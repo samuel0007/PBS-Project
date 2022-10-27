@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 import numpy as np
-=======
->>>>>>> f562b2d503977e54b898e283c5c09db8669878aa
 import taichi as ti
 from .kernel import CubicSpline
 
@@ -26,12 +23,6 @@ class FluidModel:
         self.num_z_cells = int(np.ceil((self.z_max - self.z_min)/self.support_radius))
         print((self.num_x_cells, self.num_y_cells, self.num_z_cells))
 
-        print(type(self.num_x_cells))
-
-        self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
-        self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
-        self.density = ti.field(dtype=ti.f32, shape=(self.num_particles))
-<<<<<<< HEAD
         self.neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
 
         #I couldn't find a way to use an array as a dtype. Now, there is a maximal number of particles that can occupy any cell.
@@ -40,9 +31,12 @@ class FluidModel:
         self.particles_in_cell = ti.field(dtype = ti.i32, shape = (self.num_x_cells, self.num_y_cells, self.num_z_cells))
                                                                     
 
-        self.poly6 = Poly6(self.support_radius)
-        self.spiky = Spiky(self.support_radius)
-=======
+
+        print(type(self.num_x_cells))
+
+        self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
+        self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
+        self.density = ti.field(dtype=ti.f32, shape=(self.num_particles))
         self.f_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
         self.f_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles))
         self.b_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles))
@@ -54,7 +48,6 @@ class FluidModel:
         self.b_X = b_X
         self.b_M = b_M
         self.b_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.b_num_particles))
->>>>>>> f562b2d503977e54b898e283c5c09db8669878aa
 
     @ti.kernel
     def CFL_condition(self) -> ti.f32:
@@ -79,7 +72,6 @@ class FluidModel:
                     self.f_neighbors[i, j] = 1
                     f_count += 1
                 else:
-<<<<<<< HEAD
                     self.neighbors[i, j] = 0
     
     @ti.kernel
@@ -110,22 +102,6 @@ class FluidModel:
     def get_neighbors(self,i: ti.i32):
         pass
         
-=======
-                    self.f_neighbors[i, j] = 0
-            self.f_number_of_neighbors[i] = f_count
-            
-            b_count = 0
-            for j in range(self.b_num_particles):
-                if (local_pos - self.b_X[j]).norm() < self.support_radius:
-                    self.b_neighbors[i, j] = 1
-                    b_count += 1
-                else:
-                    self.b_neighbors[i, j] = 0
-            self.b_number_of_neighbors[i] = b_count
-
-            self.number_of_neighbors[i] = f_count + b_count
-            
->>>>>>> f562b2d503977e54b898e283c5c09db8669878aa
     @ti.kernel
     def update_density(self):
         for i in range(self.num_particles):
