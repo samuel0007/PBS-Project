@@ -1,6 +1,5 @@
 import taichi as ti
 import numpy as np
-import math
 from .baseFluidModel import FluidModel
 from .dfsph import DensityAndPressureSolver
 from .viscosity2018 import ViscositySolver
@@ -9,7 +8,7 @@ from .akinciBoundary2012 import BoundaryModel
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, bounds: float, mass: ti.f32, support_radius: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/"):
+    def __init__(self, num_particles: int, max_time: float, bounds: float, mass: ti.f32, support_radius: ti.f32, mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/"):
         self.num_particles = num_particles
         self.max_time = max_time
         self.is_frame_export = is_frame_export
@@ -22,6 +21,7 @@ class Simulation:
         self.support_radius = support_radius
         self.rest_density = 1000
         self.mass = mass
+        self.mu = mu
 
         self.radius = self.support_radius / 4
 
@@ -34,7 +34,7 @@ class Simulation:
         self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius)
         
         self.densityAndPressureSolver = DensityAndPressureSolver(num_particles, self.fluid.support_radius)
-        self.viscositySolver = ViscositySolver(num_particles)
+        self.viscositySolver = ViscositySolver(num_particles, self.mu, self.fluid.support_radius)
 
         self.non_pressure_forces = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.number_of_neighbors = ti.field(ti.i32, self.num_particles)
@@ -87,11 +87,14 @@ class Simulation:
         self.divergence_solve, self.divergence_iteration = self.densityAndPressureSolver.divergenceSolver.solve(self.fluid, self.dt)
 
         # Implicit Viscosity Solver
-        self.fluid.V = self.viscositySolver.solve(self.fluid.V)
+        # print("Velocity Average: ", np.average(self.fluid.V.to_numpy()))
+        self.viscosity_sucess = self.viscositySolver.solve(self.fluid, self.dt)
+        # self.viscosity_sucess = 1
+        # print("Velocity Average After Viscosity: ", np.average(self.fluid.V.to_numpy()))
       
         self.current_time += self.dt
 
-        self.dt = self.fluid.CFL_condition()
+        # self.dt = self.fluid.CFL_condition()
 
         if self.debug:
             # pass
@@ -119,7 +122,7 @@ class Simulation:
                 for k in range(num_particles_x):
                     self.fluid.X[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([i, j, k], ti.f32) * delta + offs
                     # add velocity in z direction
-                    self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([1., 0., 0], ti.f32)
+                    self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([1., 0., 1.], ti.f32)
 
     def run(self):
         self.prolog()
@@ -137,7 +140,7 @@ class Simulation:
         self.save()
 
     def log_state(self):
-        print(f"[T] {self.current_time:.3f}, [dt]: {self.dt}, [B_cnt_avg]: {np.average(self.fluid.b_number_of_neighbors.to_numpy()):.1f}, [d_avg]: {np.average(self.fluid.density.to_numpy()):.1f}, [P_SOL]:{(self.pressure_solve):.1f}, [P_I]: {self.pressure_iteration}, [D_SOL]:{self.divergence_solve:1f}, [D_I]:{self.divergence_iteration}", end="\r")
+        print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{np.average(self.fluid.b_number_of_neighbors.to_numpy()):.1f},[d_avg]:{np.average(self.fluid.density.to_numpy()):.1f},[P_SOL]:{(self.pressure_solve):.1f},[P_I]:{self.pressure_iteration},[D_SOL]:{self.divergence_solve:1f},[D_I]:{self.divergence_iteration},[V]:{self.viscosity_sucess}", end="\r")
 
     def frame_export(self):
         np.save(self.result_dir + f"frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy())

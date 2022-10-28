@@ -4,7 +4,7 @@ import glob
 import math
 
 
-CAMERA_LOOK_AT = [0, 0.1, 0]
+CAMERA_LOOK_AT = [0.5, 0.1, 0.5]
 #TODO: draw boundary particles according to their pseudomass at each frame
 REST_DENSITY = 1000
 
@@ -27,7 +27,7 @@ class Renderer:
         self.z_bound = bounds
 
         # self.CAMERA_POS = [1.2*self.x_bound, 1.2*self.y_bound, 1.2*self.z_bound]
-        self.CAMERA_POS = [1.9, 1, 1.8]
+        self.CAMERA_POS = [1.4, 1.4, 2.4]
         self.render_boundary = render_boundary
         self.render_density = render_density    
 

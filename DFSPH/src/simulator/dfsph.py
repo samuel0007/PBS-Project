@@ -75,7 +75,7 @@ class DivergenceSolver:
             self.update_velocity(fluid.mass, fluid.X, fluid.V, fluid.f_neighbors, fluid.b_M, fluid.b_X, fluid.b_neighbors, dt)
             density_adv_avg = self.compute_field_average(self.density_adv)
             iteration += 1
-        return density_adv_avg - eta, iteration
+        return density_adv_avg*dt - eta, iteration
 
     @ti.kernel
     def update_velocity(self, M: ti.f32, X: ti.template(), V: ti.template(), f_neighbors: ti.template(), b_M: ti.template(), b_X: ti.template(), b_neighbors: ti.template(), dt: ti.f32):
@@ -155,7 +155,7 @@ class DensitySolver:
 
         self.eps = 1e-5
         self.tol = 1e-5
-        self.max_iter = 100
+        self.max_iter = 10
         self.min_iter = -1
 
     def solve(self, fluid: FluidModel, dt: ti.f32):

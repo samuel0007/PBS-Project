@@ -53,7 +53,7 @@ class FluidModel:
         max_V = 0.
         for i in range(self.num_particles):
             max_V = max(max_V, self.V[i].norm())
-        return min(5e-5, 0.4 * self.support_radius / max_V)
+        return min(5e-4, 0.4 * self.support_radius / max_V)
 
     @ti.kernel
     def explicit_update_position(self, dt: ti.f32):
