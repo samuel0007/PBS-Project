@@ -51,6 +51,9 @@ class Simulation:
         self.boundary.expose()
 
         self.fluid.set_boundary_particles(self.boundary.X, self.boundary.M)
+
+        #new
+        self.fluid.update_b_grid()
         
         self.fluid.update_neighbors()
         self.fluid.update_density()
@@ -75,6 +78,11 @@ class Simulation:
 
         # Prepare Divergence Free Solver
         self.fluid.update_neighbors()
+
+        #new
+        self.fluid.update_grid()
+        self.fluid.update_neighbor_list()
+        self.fluid.update_b_neighbor_list()
         # print(self.fluid.number_of_neighbors)
         self.fluid.update_density()
 
@@ -94,7 +102,7 @@ class Simulation:
       
         self.current_time += self.dt
 
-        # self.dt = self.fluid.CFL_condition()
+        self.dt = self.fluid.CFL_condition()
 
         if self.debug:
             # pass
