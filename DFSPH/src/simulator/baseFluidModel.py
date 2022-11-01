@@ -1,11 +1,12 @@
 import numpy as np
 import taichi as ti
+from typing import Tuple
 from .kernel import CubicSpline
 
 @ti.data_oriented
 class FluidModel:
-    def __init__(self, num_particles: ti.i32, density0: ti.f32, support_radius: ti.f32, mass: ti.f32, x_min: ti.f32 = -1.0, x_max: ti.f32 = 1.0, \
-                          y_min: ti.f32 = -1.0, y_max: ti.f32 = 1.0, z_min: ti.f32 = -1.0, z_max: ti.f32 = 1.0):
+    def __init__(self, num_particles: ti.i32, density0: ti.f32, support_radius: ti.f32, mass: ti.f32, x_min: ti.f32 = -1.5, x_max: ti.f32 = 1.5, \
+                          y_min: ti.f32 = -1.5, y_max: ti.f32 = 1.5, z_min: ti.f32 = -1.5, z_max: ti.f32 = 1.5):
         self.num_particles = num_particles
         self.density0 = density0
         self.support_radius = support_radius
@@ -26,7 +27,7 @@ class FluidModel:
         # self.neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
 
         #I couldn't find a way to use an array as a dtype. Now, there is a maximal number of particles that can occupy any cell.
-        self.max_particles_per_cell = int(32)
+        self.max_particles_per_cell = int(128)
         #grid_shape = (self.num_x_cells, self.num_y_cells, self.num_z_cells, self.max_particles_per_cell)
         #grid_snode = ti.root.dense(ti.ijk, grid_shape)
          
@@ -44,7 +45,7 @@ class FluidModel:
         #may not be needed
         #self.particles_in_cell = ti.field(dtype = ti.i32)
         #grid_snode.place(self.particles_in_cell)
-        self.max_neighbors = int(128)
+        self.max_neighbors = int(64)
 
         
         
@@ -118,7 +119,7 @@ class FluidModel:
             
 
     @ti.func
-    def get_cell(self, pos: ti.types.vector(3, ti.f32)) -> tuple[ti.i32, ti.i32, ti.i32]:
+    def get_cell(self, pos: ti.types.vector(3, ti.f32)) -> Tuple[int, int, int]:
         x_cell = int( (pos[0] - self.x_min) / (self.x_max - self.x_min) * self.num_x_cells)
         y_cell = int( (pos[1] - self.y_min) / (self.y_max - self.y_min) * self.num_y_cells)
         z_cell = int( (pos[2] - self.z_min) / (self.z_max - self.z_min) * self.num_z_cells)
@@ -212,6 +213,19 @@ class FluidModel:
                             if d2 < h2:
                                 ti.append(self.neighbor_structure, i, j)
 
+            m1 = ti.length(self.neighbor_structure, i)
+            m2 = self.f_number_of_neighbors[i]
+            """
+            if m1 != m2:
+                print("f_neighbor count not the same in both methods:")
+                print((i,m1,m2))
+                print(pos_i)
+            else:
+                print("f_neighbor count is the same in both methods:")
+                print((i,m1,m2))
+            """
+            
+
     @ti.kernel
     def update_b_neighbor_list(self):
         for i in range(self.num_particles):
@@ -233,6 +247,18 @@ class FluidModel:
                             d2 = dist.norm_sqr()
                             if d2 < h2:
                                 ti.append(self.b_neighbor_structure, i, j)
+            m1 = ti.length(self.b_neighbor_structure, i)
+            m2 = self.b_number_of_neighbors[i]
+            """
+            if m1 != m2:
+                print("b_neighbor count not the same in both methods:")
+                print((i,m1,m2))
+                print(pos_i)
+            
+            else:
+                print("b_neighbor count is the same in both methods:")
+                print((i,m1,m2)) 
+            """              
 
             
 
@@ -264,5 +290,6 @@ class FluidModel:
                 for l in range(ti.length(self.b_neighbor_structure,i)):
                     j = self.neighbor_list[i,l]
                     density += self.mass * self.kernel.W(local_pos - self.b_X[j])
+                
 
             self.density[i] = density
