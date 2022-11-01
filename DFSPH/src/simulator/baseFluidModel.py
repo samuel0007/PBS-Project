@@ -55,7 +55,7 @@ class FluidModel:
         self.b_neighbor_structure = self.b_neighbor_snode.dynamic(ti.j, self.max_neighbors)
         self.b_neighbor_structure.place(self.b_neighbor_list)
                                      
-        print((self.num_x_cells,self.num_y_cells,self.num_z_cells))
+        print("Num Cells:", (self.num_x_cells,self.num_y_cells,self.num_z_cells))
 
         self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
