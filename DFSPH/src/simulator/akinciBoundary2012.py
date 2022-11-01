@@ -38,10 +38,15 @@ class BoundaryModel:
             elif face == 5:
                 self.m_X[face, x, y] = [x * self.resolution, self.bounds, y * self.resolution]
     
+    def compute_M(self, density0: ti.f32):
+        self.compute_M_kernel(density0)
+        self.X.from_numpy(self.m_X.to_numpy().reshape(-1, 3))
+        self.M.from_numpy(self.m_M.to_numpy().reshape(-1))
+
     # Compute mass of each boundary particle, O(n^2) for now, but is only used at init.
     # Should be optimized when rest density of fluid is not constant
     @ti.kernel
-    def compute_M(self, f_X: ti.template(), density0: ti.f32):
+    def compute_M_kernel(self, density0: ti.f32):
         for face, x, y in self.m_X:
             denom = 0.
             local_pos = self.m_X[face, x, y]
@@ -52,7 +57,3 @@ class BoundaryModel:
                         denom += self.kernel.W(local_pos - other_pos)
             
             self.m_M[face, x, y] = density0 / denom * 1.1
-        
-    def expose(self):
-        self.X.from_numpy(self.m_X.to_numpy().reshape(-1, 3))
-        self.M.from_numpy(self.m_M.to_numpy().reshape(-1))

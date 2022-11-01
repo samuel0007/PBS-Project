@@ -22,9 +22,7 @@ class FluidModel:
         self.num_x_cells = int(np.ceil((self.x_max - self.x_min)/self.support_radius))
         self.num_y_cells = int(np.ceil((self.y_max - self.y_min)/self.support_radius))
         self.num_z_cells = int(np.ceil((self.z_max - self.z_min)/self.support_radius))
-        # print((self.num_x_cells, self.num_y_cells, self.num_z_cells))
 
-        # self.neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
 
         #I couldn't find a way to use an array as a dtype. Now, there is a maximal number of particles that can occupy any cell.
         self.max_particles_per_cell = int(128)
@@ -47,10 +45,6 @@ class FluidModel:
         #grid_snode.place(self.particles_in_cell)
         self.max_neighbors = int(64)
 
-        
-        
-
-        
         self.neighbor_list = ti.field(dtype = ti.i32)
         self.neighbor_snode = ti.root.pointer(ti.i, self.num_particles)
         self.neighbor_structure = self.neighbor_snode.dynamic(ti.j, self.max_neighbors)
@@ -61,8 +55,6 @@ class FluidModel:
         self.b_neighbor_structure = self.b_neighbor_snode.dynamic(ti.j, self.max_neighbors)
         self.b_neighbor_structure.place(self.b_neighbor_list)
                                      
-
-        # print(type(self.num_x_cells))
         print((self.num_x_cells,self.num_y_cells,self.num_z_cells))
 
         self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
@@ -92,9 +84,19 @@ class FluidModel:
         for i in range(self.num_particles):
             self.X[i] += self.V[i] * dt
 
+    def update_neighbors(self):
+        self.update_neighbors_kernel() # For now, until new method is implemented everywhere
+        self.update_grid()
+        self.update_neighbor_list()
+        self.update_b_neighbor_list()
+
+    def update_b_neighbors(self):
+        self.update_b_grid()
+        self.update_b_neighbor_list()
+
     # Dumb O(n^2) neighbor search, replace with grid based later
     @ti.kernel
-    def update_neighbors(self):
+    def update_neighbors_kernel(self):
         for i in range(self.num_particles):
             local_pos = self.X[i]
             f_count = 0
@@ -117,7 +119,6 @@ class FluidModel:
 
             self.number_of_neighbors[i] = f_count + b_count
             
-
     @ti.func
     def get_cell(self, pos: ti.types.vector(3, ti.f32)) -> Tuple[int, int, int]:
         x_cell = int( (pos[0] - self.x_min) / (self.x_max - self.x_min) * self.num_x_cells)
@@ -186,10 +187,6 @@ class FluidModel:
                 ti.activate(self.b_grid_snode, cell)
             
             ti.append(self.b_grid_structure, cell, i)
-
-
-
-        
 
     @ti.kernel
     def update_neighbor_list(self):
@@ -260,9 +257,6 @@ class FluidModel:
                 print((i,m1,m2)) 
             """              
 
-            
-
-        
     @ti.kernel
     def update_density(self):
         for i in range(self.num_particles):
@@ -290,6 +284,5 @@ class FluidModel:
                 for l in range(ti.length(self.b_neighbor_structure,i)):
                     j = self.neighbor_list[i,l]
                     density += self.mass * self.kernel.W(local_pos - self.b_X[j])
-                
 
             self.density[i] = density

@@ -48,20 +48,12 @@ class Simulation:
         self.init_non_pressure_forces()
         self.set_initial_fluid_condition()
 
-        self.boundary.compute_M(self.fluid.X, self.fluid.density0)
-        self.boundary.expose()
+        self.boundary.compute_M(self.fluid.density0)
 
         self.fluid.set_boundary_particles(self.boundary.X, self.boundary.M)
 
-        #new
-        
-        
         self.fluid.update_neighbors()
-
-        self.fluid.update_b_grid()
-        self.fluid.update_grid()
-        self.fluid.update_neighbor_list()
-        self.fluid.update_b_neighbor_list()
+        self.fluid.update_b_neighbors()
 
         self.fluid.update_density()
         print("B_neighbor count avg", np.average(self.fluid.b_number_of_neighbors.to_numpy()))
@@ -84,26 +76,10 @@ class Simulation:
         # print("B_neighbor count avg", np.average(self.fluid.b_number_of_neighbors.to_numpy()))
 
         # Prepare Divergence Free Solver
-        start = time.time()
         self.fluid.update_neighbors()
-        end = time.time()
-        
-        #print("O(N^2) method:")
-        #print(end-start)
-
-        #new
-        start = time.time()
-        self.fluid.update_grid()
-        self.fluid.update_neighbor_list()
-        self.fluid.update_b_neighbor_list()
-        end = time.time()
-        #print("grid method:")
-        #print(end-start)
-        # print(self.fluid.number_of_neighbors)
         self.fluid.update_density()
 
-        # self.boundary.compute_M(self.fluid.X, self.fluid.density0)
-        # self.boundary.expose()
+        # self.boundary.compute_M(self.fluid.density0)
 
         self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
 
@@ -118,7 +94,7 @@ class Simulation:
       
         self.current_time += self.dt
 
-        self.dt = self.fluid.CFL_condition()
+        # self.dt = self.fluid.CFL_condition()
 
         if self.debug:
             # pass

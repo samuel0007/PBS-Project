@@ -20,7 +20,7 @@ MU = 100
 ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=8)
 # ti.init(arch=ti.gpu, debug=False)
 simulation = Simulation(NUM_PARTICLES, MAX_TIME, mass=MASS, support_radius=SUPPORT_RADIUS, mu=MU, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR)
-# simulation.run()
+simulation.run()
 
 # Render Simulation
 renderer = Renderer(bounds=BOUNDS, result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=False, render_density=False, mass=MASS, start_frame=0)
