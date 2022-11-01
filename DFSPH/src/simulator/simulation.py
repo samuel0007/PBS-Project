@@ -1,5 +1,6 @@
 import taichi as ti
 import numpy as np
+import time
 from .baseFluidModel import FluidModel
 from .dfsph import DensityAndPressureSolver
 from .viscosity2018 import ViscositySolver
@@ -53,9 +54,15 @@ class Simulation:
         self.fluid.set_boundary_particles(self.boundary.X, self.boundary.M)
 
         #new
-        self.fluid.update_b_grid()
+        
         
         self.fluid.update_neighbors()
+
+        self.fluid.update_b_grid()
+        self.fluid.update_grid()
+        self.fluid.update_neighbor_list()
+        self.fluid.update_b_neighbor_list()
+
         self.fluid.update_density()
         print("B_neighbor count avg", np.average(self.fluid.b_number_of_neighbors.to_numpy()))
 
@@ -77,12 +84,21 @@ class Simulation:
         # print("B_neighbor count avg", np.average(self.fluid.b_number_of_neighbors.to_numpy()))
 
         # Prepare Divergence Free Solver
+        start = time.time()
         self.fluid.update_neighbors()
+        end = time.time()
+        
+        #print("O(N^2) method:")
+        #print(end-start)
 
         #new
+        start = time.time()
         self.fluid.update_grid()
         self.fluid.update_neighbor_list()
         self.fluid.update_b_neighbor_list()
+        end = time.time()
+        #print("grid method:")
+        #print(end-start)
         # print(self.fluid.number_of_neighbors)
         self.fluid.update_density()
 
