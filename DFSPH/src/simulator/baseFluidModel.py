@@ -188,6 +188,44 @@ class FluidModel:
             
             ti.append(self.b_grid_structure, cell, i)
 
+    """
+    @ti.func 
+    def get_neighbors_i(self,i: ti.i32):
+
+        size = ti.length(self.neighbor_structure,i)
+
+        return size, self.neighbor_list
+        arr = np.empty(size, dtype = ti.i32, )
+        #arr = [ self.neighbor_list[i,l] for l in range(ti.length(self.neighbor_structure,i))]
+
+        for l in range(size):
+            arr[l] = self.neighbor_list[i,l]
+
+        return arr
+
+    
+    
+    @ti.func 
+    def get_b_neighbors_i(self,i: ti.i32):
+
+        size = ti.length(self.b_neighbor_structure,i)
+
+        return size, self.b_neighbor_list
+
+        #return size, self.b_neighbor_list
+        #arr = [ self.b_neighbor_list[i,l] for l in ti.range(size)]
+
+        #return arr
+    """
+
+    @ti.func
+    def get_num_neigbhbors_i(self,i: ti.i32):
+        return ti.length(self.neighbor_structure,i)
+
+    @ti.func
+    def get_num_b_neigbhbors_i(self,i: ti.i32):
+        return ti.length(self.b_neighbor_structure,i)
+
     @ti.kernel
     def update_neighbor_list(self):
         for i in range(self.num_particles):
@@ -277,12 +315,29 @@ class FluidModel:
                     if self.b_neighbors[i, j] == 1:
                         density += self.b_M[j] * self.kernel.W(local_pos - self.b_X[j])
                 """
-                for l in range(ti.length(self.neighbor_structure,i)):
+                
+                
+                
+                for l in range(self.get_num_neigbhbors_i(i)):
                     j = self.neighbor_list[i,l]
                     density += self.mass * self.kernel.W(local_pos - self.X[j])
+                
 
-                for l in range(ti.length(self.b_neighbor_structure,i)):
+                for l in range(self.get_num_b_neigbhbors_i(i)):
                     j = self.neighbor_list[i,l]
                     density += self.mass * self.kernel.W(local_pos - self.b_X[j])
+
+                """
+
+                size, neighbor_list = self.get_neighbors_i(i)
+                for l in range(size):
+                    j = neighbor_list[i,l]
+                    density += self.mass * self.kernel.W(local_pos - self.X[j])
+
+                b_size, b_neighbor_list = self.get_b_neighbors_i(i)
+                for l in range(b_size):
+                    j = b_neighbor_list[i,l]
+                    density += self.mass * self.kernel.W(local_pos - self.b_X[j])
+                """
 
             self.density[i] = density
