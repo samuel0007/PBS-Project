@@ -128,7 +128,7 @@ class Simulation:
     def init_non_pressure_forces(self):
         for i in range(self.num_particles):
             # self.non_pressure_forces[i] = ti.Vector([0., 0., 0.], ti.f32)
-            self.non_pressure_forces[i] = ti.Vector([0., -9.81, 0.], ti.f32)
+            self.non_pressure_forces[i] = ti.Vector([0.2, -9.81, 0.1], ti.f32)
 
     @ti.kernel
     def apply_non_pressure_forces(self):

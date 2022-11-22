@@ -8,14 +8,14 @@ BOUNDS = 2
 REST_DENSITY = 1000
 RADIUS = 0.025
 SUPPORT_RADIUS = 4*RADIUS
-MAX_DT = 1e-2
+MAX_DT = 5e-4
 
 # Mass from density
 MASS = ((4./3.)*math.pi*(RADIUS**3)) *REST_DENSITY
-NUM_PARTICLES = 12**3
+NUM_PARTICLES = 15**3
 MAX_TIME = 10.
 
-MU = 10000
+MU = 5000
 
 # Run Simulation
 # ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=8)

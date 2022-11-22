@@ -105,7 +105,7 @@ class Renderer:
         bounds[22] = [self.x_bound, self.y_bound, 0]
         bounds[23] = [self.x_bound, self.y_bound, self.z_bound]
 
-        for l in range(self.start_frame, self.max_frame):
+        for l in range(self.start_frame, self.max_frame, 2):
             camera.position(*self.CAMERA_POS)
             camera.lookat(*CAMERA_LOOK_AT)
             scene.set_camera(camera)
