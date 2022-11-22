@@ -56,4 +56,4 @@ class BoundaryModel:
                         other_pos = self.m_X[other_face, other_x, other_y]
                         denom += self.kernel.W(local_pos - other_pos)
             
-            self.m_M[face, x, y] = density0 / denom * 1.1
+            self.m_M[face, x, y] = (density0 / denom) * 1.3

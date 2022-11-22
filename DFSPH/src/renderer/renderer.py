@@ -27,7 +27,7 @@ class Renderer:
         self.z_bound = bounds
 
         # self.CAMERA_POS = [1.2*self.x_bound, 1.2*self.y_bound, 1.2*self.z_bound]
-        self.CAMERA_POS = [1.4, 1.4, 2.4]
+        self.CAMERA_POS = [4, 1.4, 4]
         self.render_boundary = render_boundary
         self.render_density = render_density    
 

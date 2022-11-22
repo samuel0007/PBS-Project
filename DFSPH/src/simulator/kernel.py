@@ -75,7 +75,7 @@ class CubicSpline:
         res = ti.Vector([0., 0., 0.])
         r_norm = r.norm()
         q = r_norm / self.support_radius
-        if r_norm > 1e-5 and q <= 1.:
+        if r_norm > 1e-8 and q <= 1.:
             gradq = r * (1. / (r_norm * self.support_radius))
             if q <= 0.5:
                 res = self.l*q*(3.*q-2.)*gradq

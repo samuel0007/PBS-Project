@@ -1,16 +1,17 @@
 import numpy as np
 import taichi as ti
 from typing import Tuple
-from .kernel import CubicSpline
+from .kernel import CubicSpline, Poly6
 
 @ti.data_oriented
 class FluidModel:
-    def __init__(self, num_particles: ti.i32, density0: ti.f32, support_radius: ti.f32, mass: ti.f32, x_min: ti.f32 = -1.5, x_max: ti.f32 = 1.5, \
+    def __init__(self, num_particles: ti.i32, max_dt: ti.f32, density0: ti.f32, support_radius: ti.f32, mass: ti.f32, x_min: ti.f32 = -1.5, x_max: ti.f32 = 1.5, \
                           y_min: ti.f32 = -1.5, y_max: ti.f32 = 1.5, z_min: ti.f32 = -1.5, z_max: ti.f32 = 1.5):
         self.num_particles = num_particles
         self.density0 = density0
         self.support_radius = support_radius
         self.mass = mass
+        self.max_dt = max_dt
 
         self.x_min = x_min
         self.x_max = x_max
@@ -59,6 +60,8 @@ class FluidModel:
 
         self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
+        self.active = ti.field(dtype=ti.i32, shape=(self.num_particles))
+        self.active.fill(1) # At the beginning, all particles are active
         self.density = ti.field(dtype=ti.f32, shape=(self.num_particles))
         self.f_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
         self.f_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles))
@@ -76,8 +79,9 @@ class FluidModel:
     def CFL_condition(self) -> ti.f32:
         max_V = 0.
         for i in range(self.num_particles):
-            max_V = max(max_V, self.V[i].norm())
-        return min(5e-4, 0.4 * self.support_radius / max_V)
+            if self.active[i]:
+                max_V = max(max_V, self.V[i].norm())
+        return min(self.max_dt, 0.4 * self.support_radius / max_V)
 
     @ti.kernel
     def explicit_update_position(self, dt: ti.f32):
@@ -85,7 +89,7 @@ class FluidModel:
             self.X[i] += self.V[i] * dt
 
     def update_neighbors(self):
-        self.update_neighbors_kernel() # For now, until new method is implemented everywhere
+        # self.update_neighbors_kernel() # For now, until new method is implemented everywhere
         self.update_grid()
         self.update_neighbor_list()
         self.update_b_neighbor_list()
@@ -120,54 +124,35 @@ class FluidModel:
             self.number_of_neighbors[i] = f_count + b_count
             
     @ti.func
-    def get_cell(self, pos: ti.types.vector(3, ti.f32)) -> Tuple[int, int, int]:
+    def get_cell(self, pos: ti.types.vector(3, ti.f32)) -> Tuple[bool, Tuple[int, int, int]]:
+        check = True
         x_cell = int( (pos[0] - self.x_min) / (self.x_max - self.x_min) * self.num_x_cells)
         y_cell = int( (pos[1] - self.y_min) / (self.y_max - self.y_min) * self.num_y_cells)
         z_cell = int( (pos[2] - self.z_min) / (self.z_max - self.z_min) * self.num_z_cells)
 
-        if x_cell >= self.num_x_cells:
-            x_cell = self.num_x_cells - 1
+        if x_cell >= self.num_x_cells or x_cell < 0:
+            check = False
             
-        if y_cell >= self.num_y_cells:
-            y_cell = self.num_y_cells - 1
+        if y_cell >= self.num_y_cells or y_cell < 0:
+            check = False
             
-        if z_cell >= self.num_z_cells:
-            z_cell = self.num_z_cells - 1
+        if z_cell >= self.num_z_cells or z_cell < 0:
+            check = False
 
         cell = (x_cell,y_cell,z_cell)
-        return cell
+        return check, cell
 
     @ti.kernel
     def update_grid(self):
         """places particle indices into the cell according to their position"""
-        """
-        for i,j,k in self.particles_in_cell:
-            self.particles_in_cell[i,j,k] = 0
-        for i in range(self.num_particles):
-            pos = self.X[i]
-            x_cell = np.floor( (pos[0] - self.x_min) / (self.x_max - self.x_min) * self.num_x_cells)
-            y_cell = np.floor( (pos[1] - self.y_min) / (self.y_max - self.y_min) * self.num_y_cells)
-            z_cell = np.floor( (pos[2] - self.z_min) / (self.z_max - self.z_min) * self.num_z_cells)
-
-            if x_cell >= self.num_x_cells:
-                x_cell = self.num_x_cells - 1
-            
-            if y_cell >= self.num_y_cells:
-                y_cell = self.num_y_cells - 1
-            
-            if z_cell >= self.num_z_cells:
-                z_cell = self.num_z_cells - 1
-                
-            self.grid[x_cell, y_cell, z_cell, self.particles_in_cell[x_cell, y_cell, z_cell]] = i
-            self.particles_in_cell[x_cell, y_cell, z_cell] += 1
-        """
-
         for i,j,k in self.grid_snode:
             ti.deactivate(self.grid_snode, [i,j,k])
 
         for i in range(self.num_particles):
             pos = self.X[i]
-            cell = self.get_cell(pos)
+            check, cell = self.get_cell(pos)
+            if not check:
+                self.active[i] = 0
             
             if not ti.is_active(self.grid_snode, cell):
                 ti.activate(self.grid_snode, cell)
@@ -181,49 +166,19 @@ class FluidModel:
 
         for i in range(self.b_num_particles):
             pos = self.b_X[i]
-            cell = self.get_cell(pos)
+            _, cell = self.get_cell(pos)
             
             if not ti.is_active(self.b_grid_snode, cell):
                 ti.activate(self.b_grid_snode, cell)
             
             ti.append(self.b_grid_structure, cell, i)
 
-    """
-    @ti.func 
-    def get_neighbors_i(self,i: ti.i32):
-
-        size = ti.length(self.neighbor_structure,i)
-
-        return size, self.neighbor_list
-        arr = np.empty(size, dtype = ti.i32, )
-        #arr = [ self.neighbor_list[i,l] for l in range(ti.length(self.neighbor_structure,i))]
-
-        for l in range(size):
-            arr[l] = self.neighbor_list[i,l]
-
-        return arr
-
-    
-    
-    @ti.func 
-    def get_b_neighbors_i(self,i: ti.i32):
-
-        size = ti.length(self.b_neighbor_structure,i)
-
-        return size, self.b_neighbor_list
-
-        #return size, self.b_neighbor_list
-        #arr = [ self.b_neighbor_list[i,l] for l in ti.range(size)]
-
-        #return arr
-    """
-
     @ti.func
-    def get_num_neigbhbors_i(self,i: ti.i32):
+    def get_num_neighbors_i(self,i: ti.i32):
         return ti.length(self.neighbor_structure,i)
 
     @ti.func
-    def get_num_b_neigbhbors_i(self,i: ti.i32):
+    def get_num_b_neighbors_i(self,i: ti.i32):
         return ti.length(self.b_neighbor_structure,i)
 
     @ti.kernel
@@ -235,8 +190,9 @@ class FluidModel:
         h2 = self.support_radius * self.support_radius
         for i in range(self.num_particles):
             pos_i = self.X[i]
-            cell = self.get_cell(pos_i)
+            check, cell = self.get_cell(pos_i)
             (x_cell, y_cell, z_cell) = cell
+            if not check: continue
             for x_n in range(max(0,x_cell-1),min(self.num_x_cells,x_cell+2)):
                 for y_n in range(max(0,y_cell-1),max(self.num_y_cells,y_cell+2)):
                     for z_n in range(max(0,z_cell-1),max(self.num_z_cells,z_cell+2)):
@@ -248,19 +204,6 @@ class FluidModel:
                             if d2 < h2:
                                 ti.append(self.neighbor_structure, i, j)
 
-            m1 = ti.length(self.neighbor_structure, i)
-            m2 = self.f_number_of_neighbors[i]
-            """
-            if m1 != m2:
-                print("f_neighbor count not the same in both methods:")
-                print((i,m1,m2))
-                print(pos_i)
-            else:
-                print("f_neighbor count is the same in both methods:")
-                print((i,m1,m2))
-            """
-            
-
     @ti.kernel
     def update_b_neighbor_list(self):
         for i in range(self.num_particles):
@@ -270,8 +213,9 @@ class FluidModel:
         h2 = self.support_radius * self.support_radius
         for i in range(self.num_particles):
             pos_i = self.X[i]
-            cell = self.get_cell(pos_i)
+            check, cell = self.get_cell(pos_i)
             (x_cell, y_cell, z_cell) = cell
+            if not check: continue
             for x_n in range(max(0,x_cell-1),min(self.num_x_cells,x_cell+2)):
                 for y_n in range(max(0,y_cell-1),max(self.num_y_cells,y_cell+2)):
                     for z_n in range(max(0,z_cell-1),max(self.num_z_cells,z_cell+2)):
@@ -282,62 +226,41 @@ class FluidModel:
                             d2 = dist.norm_sqr()
                             if d2 < h2:
                                 ti.append(self.b_neighbor_structure, i, j)
-            m1 = ti.length(self.b_neighbor_structure, i)
-            m2 = self.b_number_of_neighbors[i]
-            """
-            if m1 != m2:
-                print("b_neighbor count not the same in both methods:")
-                print((i,m1,m2))
-                print(pos_i)
-            
-            else:
-                print("b_neighbor count is the same in both methods:")
-                print((i,m1,m2)) 
-            """              
-
     @ti.kernel
     def update_density(self):
         for i in range(self.num_particles):
+            if not self.active[i]: continue
             density = 0.
             local_pos = self.X[i]
 
-            # If the particle is out of bound, set its density to rest_density s.t. it doesn't penalize the solver
-            if local_pos[0] < -0.5 or local_pos[0] > 1.5 or local_pos[1] < -0.5 or local_pos[1] > 1.5 or local_pos[2] < -0.5 or local_pos[2] > 1.5:
-                density = self.density0
-
-            else:            
-                # This is the dumbest datastructure ever, but for now... let it be
-                """
-                for j in range(self.num_particles):
-                    if self.f_neighbors[i, j] == 1:
-                        density += self.mass * self.kernel.W(local_pos - self.X[j])
-                for j in range(self.b_num_particles):
-                    if self.b_neighbors[i, j] == 1:
-                        density += self.b_M[j] * self.kernel.W(local_pos - self.b_X[j])
-                """
-                
-                
-                
-                for l in range(self.get_num_neigbhbors_i(i)):
-                    j = self.neighbor_list[i,l]
-                    density += self.mass * self.kernel.W(local_pos - self.X[j])
-                
-
-                for l in range(self.get_num_b_neigbhbors_i(i)):
-                    j = self.neighbor_list[i,l]
-                    density += self.mass * self.kernel.W(local_pos - self.b_X[j])
-
-                """
-
-                size, neighbor_list = self.get_neighbors_i(i)
-                for l in range(size):
-                    j = neighbor_list[i,l]
-                    density += self.mass * self.kernel.W(local_pos - self.X[j])
-
-                b_size, b_neighbor_list = self.get_b_neighbors_i(i)
-                for l in range(b_size):
-                    j = b_neighbor_list[i,l]
-                    density += self.mass * self.kernel.W(local_pos - self.b_X[j])
-                """
-
+            for l in range(self.get_num_neighbors_i(i)):
+                j = self.neighbor_list[i,l]
+                density += self.mass * self.kernel.W(local_pos - self.X[j])
+            for l in range(self.get_num_b_neighbors_i(i)):
+                j = self.b_neighbor_list[i,l]
+                density += self.b_M[j] * self.kernel.W(local_pos - self.b_X[j])
+               
             self.density[i] = density
+
+    @ti.kernel
+    def get_num_neighbors_avg(self) -> ti.f32:
+        avg = 0.
+        for i in range(self.num_particles):
+            if not self.active[i]: continue
+            avg += self.get_num_neighbors_i(i)
+        return avg / self.num_particles
+    
+    @ti.kernel
+    def get_num_b_neighbors_avg(self) -> ti.f32:
+        avg = 0.
+        for i in range(self.num_particles):
+            if not self.active[i]: continue
+            avg += self.get_num_b_neighbors_i(i)
+        return avg / self.num_particles
+
+    @ti.kernel
+    def get_num_active_particles(self) -> ti.i32:
+        num = 0
+        for i in range(self.num_particles):
+            if self.active[i]: num += 1
+        return num
