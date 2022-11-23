@@ -5,12 +5,32 @@ from .baseFluidModel import FluidModel
 from .dfsph import DensityAndPressureSolver
 from .viscosity2018 import ViscositySolver
 from .akinciBoundary2012 import BoundaryModel
+from .vtkReader import readParticles
 
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/"):
-        self.num_particles = num_particles
+    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", vtk_file = ""):
+        self.num_particles = 0
+        self.particle_array = np.array([])
+        self.vtk_file = vtk_file
+
+        
+        
+
+
+        if vtk_file == "":
+            self.num_particles = num_particles
+        else:
+            self.particle_array = readParticles(vtk_file)
+            num_particles, trash = self.particle_array.shape
+            self.num_particles = num_particles
+
+        self.particle_field = ti.field(dtype = ti.f32, shape = (self.num_particles, 3))
+
+        if vtk_file != "":
+            self.particle_field.from_numpy(self.particle_array)
+
         self.max_time = max_time
         self.is_frame_export = is_frame_export
         self.max_dt = max_dt
@@ -65,7 +85,9 @@ class Simulation:
         self.fluid.update_density()
 
         self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
-
+        # maybe this could be needed when using arbitrary vtk files
+        # self.fluid.mass = self.fluid.mass * self.fluid.density0/self.compute_field_average(self.fluid.density)
+        # self.fluid.update_density()
          # Print initial density
         print("Initial Density Average: ", self.compute_field_average(self.fluid.density))
         print("Initial Density Max: ", self.compute_field_max(self.fluid.density))
@@ -143,16 +165,26 @@ class Simulation:
 
     @ti.kernel
     def set_initial_fluid_condition(self):  
-        delta = self.support_radius / 2.
-        num_particles_x = int(self.num_particles**(1. / 3.)) + 1
-        offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
-        
-        for i in range(num_particles_x):
-            for j in range(num_particles_x):
-                for k in range(num_particles_x):
-                    self.fluid.X[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([i, j, k], ti.f32) * delta + offs
-                    # add velocity in z direction
-                    # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
+        make_grid = (self.vtk_file == "")
+        if make_grid:
+            delta = self.support_radius / 2.
+            num_particles_x = int(self.num_particles**(1. / 3.)) + 1
+            offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
+            for i in range(num_particles_x):
+                for j in range(num_particles_x):
+                    for k in range(num_particles_x):
+                        self.fluid.X[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([i, j, k], ti.f32) * delta + offs
+                        # add velocity in z direction
+                        # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
+        else:
+            for i in range(self.num_particles):
+                x = self.particle_field[i,0]
+                y = self.particle_field[i,1]
+                z = self.particle_field[i,2]
+                self.fluid.X[i] = ti.Vector([x,y,z],ti.f32)
+
+
+
 
     def run(self):
         self.prolog()
