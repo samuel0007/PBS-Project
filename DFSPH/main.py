@@ -3,19 +3,19 @@ import math
 from src.simulator.simulation import Simulation
 from src.renderer.renderer import Renderer
 
-RESULT_DIR = "results/run_14/" # directory has to exist, otherwise crash
-BOUNDS = 2
-REST_DENSITY = 1000
+RESULT_DIR = "results/run_20/" # directory has to exist, otherwise crash
+BOUNDS = 4. # If particles are falling down, change this to int.
+REST_DENSITY = 300
 RADIUS = 0.025
 SUPPORT_RADIUS = 4*RADIUS
-MAX_DT = 5e-4
+MAX_DT = 1e-3
 
 # Mass from density
 MASS = ((4./3.)*math.pi*(RADIUS**3)) *REST_DENSITY
-NUM_PARTICLES = 15**3
+NUM_PARTICLES = 20**3
 MAX_TIME = 10.
 
-MU = 5000
+MU = 2000
 
 # Run Simulation
 # ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=8)

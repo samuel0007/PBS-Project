@@ -33,7 +33,13 @@ class Simulation:
             max_dt=self.max_dt,
             density0=self.rest_density,
             support_radius=self.support_radius,
-            mass=self.mass
+            mass=self.mass,
+            x_min=0,
+            x_max=self.bounds,
+            y_min=0,
+            y_max=self.bounds,
+            z_min=0,
+            z_max=self.bounds,
         )
         self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius)
         
@@ -127,8 +133,7 @@ class Simulation:
     @ti.kernel
     def init_non_pressure_forces(self):
         for i in range(self.num_particles):
-            # self.non_pressure_forces[i] = ti.Vector([0., 0., 0.], ti.f32)
-            self.non_pressure_forces[i] = ti.Vector([0.2, -9.81, 0.1], ti.f32)
+            self.non_pressure_forces[i] = ti.Vector([0., -9.81, 0.])
 
     @ti.kernel
     def apply_non_pressure_forces(self):
@@ -140,8 +145,8 @@ class Simulation:
     def set_initial_fluid_condition(self):  
         delta = self.support_radius / 2.
         num_particles_x = int(self.num_particles**(1. / 3.)) + 1
-        offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
-
+        offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
+        
         for i in range(num_particles_x):
             for j in range(num_particles_x):
                 for k in range(num_particles_x):
