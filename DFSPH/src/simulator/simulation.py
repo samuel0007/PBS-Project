@@ -57,8 +57,8 @@ class Simulation:
         )
         self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius)
         
-        self.densityAndPressureSolver = DensityAndPressureSolver(num_particles, self.fluid)
-        self.viscositySolver = ViscositySolver(num_particles, self.mu, self.fluid)
+        self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles, self.fluid)
+        self.viscositySolver = ViscositySolver(self.num_particles, self.mu, self.fluid)
 
         self.non_pressure_forces = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
 
@@ -169,11 +169,12 @@ class Simulation:
                         # add velocity in z direction
                         # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
         else:
+            offset = ti.Vector([2.,2.,2.],ti.f32)
             for i in range(self.num_particles):
                 x = self.particle_field[i,0]
                 y = self.particle_field[i,1]
                 z = self.particle_field[i,2]
-                self.fluid.X[i] = ti.Vector([x,y,z],ti.f32)
+                self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset
 
 
 
