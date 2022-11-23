@@ -15,16 +15,11 @@ class Simulation:
         self.particle_array = np.array([])
         self.vtk_file = vtk_file
 
-        
-        
-
-
         if vtk_file == "":
             self.num_particles = num_particles
         else:
             self.particle_array = readParticles(vtk_file)
-            num_particles, trash = self.particle_array.shape
-            self.num_particles = num_particles
+            self.num_particles = self.particle_array.shape[0]
 
         self.particle_field = ti.field(dtype = ti.f32, shape = (self.num_particles, 3))
 
@@ -44,7 +39,6 @@ class Simulation:
         self.rest_density = rest_density
         self.mass = mass
         self.mu = mu
-        
 
         self.radius = self.support_radius / 4
 
@@ -85,10 +79,8 @@ class Simulation:
         self.fluid.update_density()
 
         self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
-        # maybe this could be needed when using arbitrary vtk files
-        # self.fluid.mass = self.fluid.mass * self.fluid.density0/self.compute_field_average(self.fluid.density)
-        # self.fluid.update_density()
-         # Print initial density
+       
+        # Print initial density
         print("Initial Density Average: ", self.compute_field_average(self.fluid.density))
         print("Initial Density Max: ", self.compute_field_max(self.fluid.density))
         print("Initial Density Min: ", self.compute_field_min(self.fluid.density))
