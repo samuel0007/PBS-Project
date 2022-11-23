@@ -5,25 +5,25 @@ from .baseFluidModel import FluidModel
 from .dfsph import DensityAndPressureSolver
 from .viscosity2018 import ViscositySolver
 from .akinciBoundary2012 import BoundaryModel
-from .vtkReader import readParticles
+from .pointDatareader import readParticles
 
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", vtk_file = ""):
+    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = ""):
         self.num_particles = 0
         self.particle_array = np.array([])
-        self.vtk_file = vtk_file
+        self.pointData_file = pointData_file
 
-        if vtk_file == "":
+        if pointData_file == "":
             self.num_particles = num_particles
         else:
-            self.particle_array = readParticles(vtk_file)
+            self.particle_array = readParticles(pointData_file)
             self.num_particles = self.particle_array.shape[0]
 
         self.particle_field = ti.field(dtype = ti.f32, shape = (self.num_particles, 3))
 
-        if vtk_file != "":
+        if pointData_file != "":
             self.particle_field.from_numpy(self.particle_array)
 
         self.max_time = max_time
@@ -157,7 +157,7 @@ class Simulation:
 
     @ti.kernel
     def set_initial_fluid_condition(self):  
-        make_grid = (self.vtk_file == "")
+        make_grid = (self.pointData_file == "")
         if make_grid:
             delta = self.support_radius / 2.
             num_particles_x = int(self.num_particles**(1. / 3.)) + 1
