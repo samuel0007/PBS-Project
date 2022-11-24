@@ -10,11 +10,16 @@ class BoundaryModel:
         # self.resolution = resolution
         self.num_particles_per_axis = int(bounds / self.resolution)
         self.num_particles_per_face = self.num_particles_per_axis *self.num_particles_per_axis 
-        self.num_particles = 6 * self.num_particles_per_face
+        # self.num_particles = 6 * self.num_particles_per_face
 
-        self.m_X = ti.Vector.field(3, dtype=ti.f32, shape=(6, self.num_particles_per_axis, self.num_particles_per_axis))
-        self.m_M = ti.field(ti.f32, shape=(6, self.num_particles_per_axis, self.num_particles_per_axis))
+        # self.m_X = ti.Vector.field(3, dtype=ti.f32, shape=(6, self.num_particles_per_axis, self.num_particles_per_axis))
+        # self.m_M = ti.field(ti.f32, shape=(6, self.num_particles_per_axis, self.num_particles_per_axis))
         
+        self.num_particles = 5 * self.num_particles_per_face
+
+        self.m_X = ti.Vector.field(3, dtype=ti.f32, shape=(5, self.num_particles_per_axis, self.num_particles_per_axis))
+        self.m_M = ti.field(ti.f32, shape=(5, self.num_particles_per_axis, self.num_particles_per_axis))
+       
         self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.M = ti.field(ti.f32, shape=(self.num_particles))
 
@@ -35,8 +40,8 @@ class BoundaryModel:
                 self.m_X[face, x, y] = [self.bounds, x * self.resolution, y * self.resolution]
             elif face == 4:
                 self.m_X[face, x, y] = [x * self.resolution, 0, y * self.resolution]
-            elif face == 5:
-                self.m_X[face, x, y] = [x * self.resolution, self.bounds, y * self.resolution]
+            # elif face == 5:
+            #     self.m_X[face, x, y] = [x * self.resolution, self.bounds, y * self.resolution]
     
     def compute_M(self, density0: ti.f32):
         self.compute_M_kernel(density0)
@@ -50,7 +55,8 @@ class BoundaryModel:
         for face, x, y in self.m_X:
             denom = 0.
             local_pos = self.m_X[face, x, y]
-            for other_face in range(6):
+            for other_face in range(5):
+            # for other_face in range(6):
                 for other_x in range(self.num_particles_per_axis):
                     for other_y in range(self.num_particles_per_axis):
                         other_pos = self.m_X[other_face, other_x, other_y]

@@ -1,3 +1,4 @@
 *
 !.gitignore
 !run_rope_1/
+!run_rope_1/*

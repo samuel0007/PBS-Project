@@ -10,7 +10,7 @@ from .pointDatareader import readParticles
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = ""):
+    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = ""):
         self.num_particles = 0
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
@@ -19,6 +19,8 @@ class Simulation:
             self.num_particles = num_particles
         else:
             self.particle_array = readParticles(pointData_file)
+            # append to the particle array itself
+            # self.particle_array = np.append(self.particle_array, self.particle_array, axis=0)
             self.num_particles = self.particle_array.shape[0]
 
         self.particle_field = ti.field(dtype = ti.f32, shape = (self.num_particles, 3))
@@ -39,6 +41,7 @@ class Simulation:
         self.rest_density = rest_density
         self.mass = mass
         self.mu = mu
+        self.b_mu = b_mu
 
         self.radius = self.support_radius / 4
 
@@ -58,7 +61,7 @@ class Simulation:
         self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius)
         
         self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles, self.fluid)
-        self.viscositySolver = ViscositySolver(self.num_particles, self.mu, self.fluid)
+        self.viscositySolver = ViscositySolver(self.num_particles, self.mu, self.b_mu, self.fluid)
 
         self.non_pressure_forces = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
 
@@ -169,15 +172,21 @@ class Simulation:
                         # add velocity in z direction
                         # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
         else:
-            offset = ti.Vector([2.,2.,2.],ti.f32)
+            offset_1 = ti.Vector([0.,-1,0.],ti.f32)
             for i in range(self.num_particles):
                 x = self.particle_field[i,0]
                 y = self.particle_field[i,1]
                 z = self.particle_field[i,2]
-                self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset
+                self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset_1
+                # self.fluid.V[i] = ti.Vector([0.,50.,0.],ti.f32)
 
-
-
+            # offset_2 = ti.Vector([2.,1.3,2.],ti.f32)
+            # for i in range(self.num_particles/2, self.num_particles):
+            #     x = self.particle_field[i,0]
+            #     y = self.particle_field[i,1]
+            #     z = self.particle_field[i,2]
+            #     self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset_2
+            #     self.fluid.V[i] = ti.Vector([0.,-50.,0.],ti.f32)
 
     def run(self):
         self.prolog()
