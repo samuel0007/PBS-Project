@@ -151,12 +151,13 @@ class FluidModel:
         for i in range(self.num_particles):
             pos = self.X[i]
             check, cell = self.get_cell(pos)
+            #deactivate particle if out of bounds
             if not check:
                 self.active[i] = 0
+                continue
             
             if not ti.is_active(self.grid_snode, cell):
-                ti.activate(self.grid_snode, cell)
-            
+                ti.activate(self.grid_snode, cell)                
             ti.append(self.grid_structure, cell, i)
 
     @ti.kernel
@@ -186,6 +187,7 @@ class FluidModel:
         for i in range(self.num_particles):
             ti.deactivate(self.neighbor_snode, i)
             ti.activate(self.neighbor_snode, i)
+
 
         h2 = self.support_radius * self.support_radius
         for i in range(self.num_particles):
