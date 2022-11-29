@@ -26,7 +26,7 @@ class FluidModel:
 
 
         #I couldn't find a way to use an array as a dtype. Now, there is a maximal number of particles that can occupy any cell.
-        self.max_particles_per_cell = int(128)
+        self.max_particles_per_cell = int(32)
         #grid_shape = (self.num_x_cells, self.num_y_cells, self.num_z_cells, self.max_particles_per_cell)
         #grid_snode = ti.root.dense(ti.ijk, grid_shape)
          
