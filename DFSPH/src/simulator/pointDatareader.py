@@ -1,14 +1,20 @@
 import pyvista as pv
-import taichi as ti
 
+def getFormat(file: str):
+    return file[file.find('.') + 1:]
 
 def readParticles(file):
-    mesh = pv.read(file)
-    return mesh.points
+    format = getFormat(file)
+    if format == "vtk":
+        mesh = pv.read(file)
+        return mesh.points
+    if format == "bgeo":
+        # TODO
+        pass
 
 def main(file):
-    mesh = pv.read(file)
-    points = mesh.points
+    print(getFormat(file))
+    points = readParticles(file)
     print("shape of array:")
     print(points.shape)
     print(points)
@@ -25,4 +31,4 @@ def main(file):
     print((min(z_coords),max(z_coords)))
 
 if __name__ == '__main__':
-    main(r"src\pointDataFiles\Dragon.vtk")
+    main(r"src\pointDataFiles\BigDragonSurface.vtk")
