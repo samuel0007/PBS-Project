@@ -30,16 +30,16 @@ class BoundaryModel:
     def generate_boundary_particles(self):
         # Generate particles on the boundary
         for face, x, y in self.m_X:
-            if face == 0:
-                self.m_X[face, x, y] = [x * self.resolution, y * self.resolution, 0]
-            elif face == 1:
-                self.m_X[face, x, y] = [x * self.resolution, y * self.resolution, self.bounds]
-            elif face == 2:
-                self.m_X[face, x, y] = [0, x * self.resolution, y * self.resolution]
+            # if face == 0:
+            #     self.m_X[face, x, y] = [x * self.resolution, y * self.resolution, 0]
+            # elif face == 1:
+            #     self.m_X[face, x, y] = [x * self.resolution, y * self.resolution, self.bounds]
+            if face == 2:
+                self.m_X[face, x, y] = [1.5, x * self.resolution, y * self.resolution]
             elif face == 3:
                 self.m_X[face, x, y] = [self.bounds, x * self.resolution, y * self.resolution]
             elif face == 4:
-                self.m_X[face, x, y] = [x * self.resolution, 0, y * self.resolution]
+                self.m_X[face, x, y] = [x * self.resolution + 1.5, 0, y * self.resolution]
             # elif face == 5:
             #     self.m_X[face, x, y] = [x * self.resolution, self.bounds, y * self.resolution]
     

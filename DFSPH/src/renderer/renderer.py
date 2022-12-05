@@ -4,7 +4,7 @@ import glob
 import math
 
 
-CAMERA_LOOK_AT = [0.3, 0.2, 0.3]
+CAMERA_LOOK_AT = [3, 3, 3]
 #TODO: draw boundary particles according to their pseudomass at each frame
 REST_DENSITY = 1000
 
@@ -27,7 +27,7 @@ class Renderer:
         self.z_bound = bounds
 
         # self.CAMERA_POS = [1.2*self.x_bound, 1.2*self.y_bound, 1.2*self.z_bound]
-        self.CAMERA_POS = [5, 1, 5]
+        self.CAMERA_POS = [3, 1.25, -4]
         self.render_boundary = render_boundary
         self.render_density = render_density    
 
@@ -106,7 +106,8 @@ class Renderer:
         bounds[23] = [self.x_bound, self.y_bound, self.z_bound]
 
         for l in range(self.start_frame, self.max_frame, 1):
-            # CAMERA_LOOK_AT[1] += 0.5
+            if CAMERA_LOOK_AT[1] > 0.2:
+                CAMERA_LOOK_AT[1] -= 0.002
             camera.position(*self.CAMERA_POS)
             camera.lookat(*CAMERA_LOOK_AT)
             scene.set_camera(camera)
@@ -132,7 +133,7 @@ class Renderer:
             if self.render_boundary:
                 scene.particles(centers=self.b_particles, radius=self.radius, color=(0.5, 0.5, 0.5))
 
-            scene.lines(bounds, 0.5)
+            # scene.lines(bounds, 0.5)
             canvas.scene(scene)
             print("Frame: ", l, end="\r")
             self.video_manager.write_frame(window.get_image_buffer_as_numpy())

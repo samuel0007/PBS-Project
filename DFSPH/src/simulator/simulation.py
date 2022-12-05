@@ -52,9 +52,9 @@ class Simulation:
             support_radius=self.support_radius,
             mass=self.mass,
             x_min=0,
-            x_max=self.bounds,
+            x_max=self.bounds + 2,
             y_min=0,
-            y_max=self.bounds,
+            y_max=self.bounds*2,
             z_min=0,
             z_max=self.bounds,
         )
@@ -164,7 +164,8 @@ class Simulation:
         if make_grid:
             delta = self.support_radius / 2.
             num_particles_x = int(self.num_particles**(1. / 3.)) + 1
-            offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
+            offs = ti.Vector([2.72, 3.2, 1]) 
+            # offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
             for i in range(num_particles_x):
                 for j in range(num_particles_x):
                     for k in range(num_particles_x):
@@ -172,7 +173,7 @@ class Simulation:
                         # add velocity in z direction
                         # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
         else:
-            offset_1 = ti.Vector([0.,-1,0.],ti.f32)
+            offset_1 = ti.Vector([2.85,3,1.],ti.f32)
             for i in range(self.num_particles):
                 x = self.particle_field[i,0]
                 y = self.particle_field[i,1]
