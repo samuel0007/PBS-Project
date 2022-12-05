@@ -10,7 +10,7 @@ from .pointDatareader import readParticles
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = ""):
+    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = ""):
         self.num_particles = 0
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
@@ -58,7 +58,7 @@ class Simulation:
             z_min=0,
             z_max=self.bounds,
         )
-        self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius)
+        self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius, pointData_file = boundary_pointData_file)
         
         self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles, self.fluid)
         self.viscositySolver = ViscositySolver(self.num_particles, self.mu, self.b_mu, self.fluid)

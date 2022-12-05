@@ -26,7 +26,7 @@ class FluidModel:
 
 
         #I couldn't find a way to use an array as a dtype. Now, there is a maximal number of particles that can occupy any cell.
-        self.max_particles_per_cell = int(128)
+        self.max_particles_per_cell = int(32)
         #grid_shape = (self.num_x_cells, self.num_y_cells, self.num_z_cells, self.max_particles_per_cell)
         #grid_snode = ti.root.dense(ti.ijk, grid_shape)
          
@@ -151,12 +151,13 @@ class FluidModel:
         for i in range(self.num_particles):
             pos = self.X[i]
             check, cell = self.get_cell(pos)
+            #deactivate particle if out of bounds
             if not check:
                 self.active[i] = 0
+                continue
             
             if not ti.is_active(self.grid_snode, cell):
-                ti.activate(self.grid_snode, cell)
-            
+                ti.activate(self.grid_snode, cell)                
             ti.append(self.grid_structure, cell, i)
 
     @ti.kernel
@@ -186,6 +187,7 @@ class FluidModel:
         for i in range(self.num_particles):
             ti.deactivate(self.neighbor_snode, i)
             ti.activate(self.neighbor_snode, i)
+
 
         h2 = self.support_radius * self.support_radius
         for i in range(self.num_particles):
