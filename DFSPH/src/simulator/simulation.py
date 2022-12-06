@@ -10,7 +10,7 @@ from .pointDatareader import readParticles
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = ""):
+    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = "", is_uniform_export = False):
         self.num_particles = 0
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
@@ -67,6 +67,7 @@ class Simulation:
 
         self.debug = debug
         self.result_dir = result_dir
+        self.is_uniform_export = is_uniform_export
 
     def prolog(self):
         self.init_non_pressure_forces()
@@ -93,6 +94,10 @@ class Simulation:
         print("Number of active particles: ", self.fluid.get_num_active_particles())
 
         np.save(self.result_dir + "boundary.npy", self.fluid.b_X.to_numpy())
+
+        if self.is_uniform_export:
+            self.fluid.generate_uniform_pos()
+            np.save(self.result_dir + "uniform_pos.npy", self.fluid.uniform_pos.to_numpy())
 
     def step(self):
         # Explicitly Apply non pressure forces
@@ -204,6 +209,7 @@ class Simulation:
     def postlog(self):
         self.save()
 
+
     @ti.kernel
     def compute_field_average(self, field: ti.template()) -> ti.f32:
         average = 0.
@@ -292,6 +298,10 @@ class Simulation:
     def frame_export(self):
         np.save(self.result_dir + f"frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy())
         np.save(self.result_dir + f"frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy())
+        if self.is_uniform_export:
+            self.fluid.compute_uniform_field()
+            np.save(self.result_dir + f"frame_uniform_{self.current_frame_id}.npy", self.fluid.uniform_field.to_numpy())
+
 
     def save(self):
         np.save(self.result_dir + "results.npy", self.fluid.X.to_numpy())

@@ -24,9 +24,12 @@ class FluidModel:
         self.num_y_cells = int(np.ceil((self.y_max - self.y_min)/self.support_radius))
         self.num_z_cells = int(np.ceil((self.z_max - self.z_min)/self.support_radius))
 
+        self.uniform_pos = ti.Vector.field(3, ti.f32, (self.num_x_cells, self.num_y_cells, self.num_z_cells))
+        self.uniform_field = ti.field(ti.f32, (self.num_x_cells, self.num_y_cells, self.num_z_cells))
+
 
         #I couldn't find a way to use an array as a dtype. Now, there is a maximal number of particles that can occupy any cell.
-        self.max_particles_per_cell = int(32)
+        self.max_particles_per_cell = int(128)
         #grid_shape = (self.num_x_cells, self.num_y_cells, self.num_z_cells, self.max_particles_per_cell)
         #grid_snode = ti.root.dense(ti.ijk, grid_shape)
          
@@ -195,9 +198,9 @@ class FluidModel:
             check, cell = self.get_cell(pos_i)
             (x_cell, y_cell, z_cell) = cell
             if not check: continue
-            for x_n in range(max(0,x_cell-1),min(self.num_x_cells,x_cell+2)):
-                for y_n in range(max(0,y_cell-1),max(self.num_y_cells,y_cell+2)):
-                    for z_n in range(max(0,z_cell-1),max(self.num_z_cells,z_cell+2)):
+            for x_n in range(ti.max(0,x_cell-1),ti.min(self.num_x_cells,x_cell+2)):
+                for y_n in range(ti.max(0,y_cell-1),ti.max(self.num_y_cells,y_cell+2)):
+                    for z_n in range(ti.max(0,z_cell-1),ti.max(self.num_z_cells,z_cell+2)):
                         for l in range(ti.length(self.grid_structure,[x_n,y_n,z_n])):
                             j = self.grid[x_n,y_n,z_n,l]
                             pos_j = self.X[j]
@@ -218,9 +221,9 @@ class FluidModel:
             check, cell = self.get_cell(pos_i)
             (x_cell, y_cell, z_cell) = cell
             if not check: continue
-            for x_n in range(max(0,x_cell-1),min(self.num_x_cells,x_cell+2)):
-                for y_n in range(max(0,y_cell-1),max(self.num_y_cells,y_cell+2)):
-                    for z_n in range(max(0,z_cell-1),max(self.num_z_cells,z_cell+2)):
+            for x_n in range(ti.max(0,x_cell-1),ti.min(self.num_x_cells,x_cell+2)):
+                for y_n in range(ti.max(0,y_cell-1),ti.max(self.num_y_cells,y_cell+2)):
+                    for z_n in range(ti.max(0,z_cell-1),ti.max(self.num_z_cells,z_cell+2)):
                         for l in range(ti.length(self.b_grid_structure,[x_n,y_n,z_n])):
                             j = self.b_grid[x_n,y_n,z_n,l]
                             pos_j = self.b_X[j]
@@ -266,3 +269,21 @@ class FluidModel:
         for i in range(self.num_particles):
             if self.active[i]: num += 1
         return num
+
+    @ti.kernel
+    def generate_uniform_pos(self):
+        x_cell_size = (self.x_max - self.x_min) / self.num_x_cells
+        y_cell_size = (self.y_max - self.y_min) / self.num_y_cells
+        z_cell_size = (self.z_max - self.z_min) / self.num_z_cells
+        for x_cell, y_cell, z_cell in ti.ndrange(self.num_x_cells, self.num_y_cells, self.num_z_cells):
+            self.uniform_pos[x_cell, y_cell, z_cell] = ti.Vector([x_cell*x_cell_size + x_cell_size/2, y_cell*y_cell_size + y_cell_size/2, z_cell*z_cell_size + z_cell_size/2])
+
+    @ti.kernel
+    def compute_uniform_field(self):
+        # clear uniform field
+        self.uniform_field.fill(0.)
+        for x_cell, y_cell, z_cell in ti.ndrange(self.num_x_cells, self.num_y_cells, self.num_z_cells):
+            pos = self.uniform_pos[x_cell, y_cell, z_cell]
+            for l in range(ti.length(self.grid_structure,[x_cell,y_cell,z_cell])):
+                j = self.grid[x_cell,y_cell,z_cell,l]
+                self.uniform_field[x_cell, y_cell, z_cell] += self.mass * self.kernel.W(pos - self.X[j])
