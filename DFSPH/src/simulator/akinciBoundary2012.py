@@ -91,7 +91,7 @@ class BoundaryModel:
                 
                 self.m_M[face, x, y] = (density0 / denom) * coefficient
         else:
-            for i in self.X:
+            for i in range(self.num_particles):
                 local_pos = self.X[i]
                 denom = 0.
                 for j in range(self.num_particles):

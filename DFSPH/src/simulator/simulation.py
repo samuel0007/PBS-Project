@@ -11,7 +11,7 @@ from. emitter import Emitter
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = ""):
+    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = "", is_uniform_export = False):
         # This is a bit of a nuisance, but the value couldn't be modified otherwise
         # Now, num_particles can be accessed as self.num_particles[None]
         self.num_particles = ti.field(ti.i32, shape = ())
@@ -78,9 +78,9 @@ class Simulation:
             support_radius=self.support_radius,
             mass=self.mass,
             x_min=0,
-            x_max=self.bounds,
+            x_max=self.bounds + 2,
             y_min=0,
-            y_max=self.bounds,
+            y_max=self.bounds*2,
             z_min=0,
             z_max=self.bounds,
         )
@@ -94,6 +94,10 @@ class Simulation:
 
         self.debug = debug
         self.result_dir = result_dir
+        self.is_uniform_export = is_uniform_export
+
+    def should_emit(self):
+        return True
 
     def should_emit(self):
         return True
@@ -123,6 +127,10 @@ class Simulation:
         print("Number of active particles: ", self.fluid.get_num_active_particles())
 
         np.save(self.result_dir + "boundary.npy", self.fluid.b_X.to_numpy())
+
+        if self.is_uniform_export:
+            self.fluid.generate_uniform_pos()
+            np.save(self.result_dir + "uniform_pos.npy", self.fluid.uniform_pos.to_numpy())
 
     def step(self):
         # Explicitly Apply non pressure forces
@@ -201,7 +209,8 @@ class Simulation:
         if make_grid:
             delta = self.support_radius / 2.
             num_particles_x = int(self.num_particles[None]**(1. / 3.)) + 1
-            offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
+            offs = ti.Vector([2.72, 3.2, 1]) 
+            # offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
             for i in range(num_particles_x):
                 for j in range(num_particles_x):
                     for k in range(num_particles_x):
@@ -239,6 +248,7 @@ class Simulation:
     
     def postlog(self):
         self.save()
+
 
     @ti.kernel
     def compute_field_average(self, field: ti.template()) -> ti.f32:
@@ -330,6 +340,10 @@ class Simulation:
         # (this wasn't done from the start, so some exported frames still have a bunch of inactive particles)
         np.save(self.result_dir + f"frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy()[:self.num_particles[None],])
         np.save(self.result_dir + f"frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy()[:self.num_particles[None],])
+        if self.is_uniform_export:
+            self.fluid.compute_uniform_field()
+            np.save(self.result_dir + f"frame_uniform_{self.current_frame_id}.npy", self.fluid.uniform_field.to_numpy())
+
 
     def save(self):
         np.save(self.result_dir + "results.npy", self.fluid.X.to_numpy())
