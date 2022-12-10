@@ -24,6 +24,7 @@ class BoundaryModel:
             self.num_particles = 5 * self.num_particles_per_face
         else:
             self.particle_array = readParticles(self.pointData_file)
+            self.num_particles = self.particle_array.shape[0]
 
         self.particle_field = ti.field(dtype = ti.f32, shape = (self.num_particles, 3))
 
@@ -93,7 +94,7 @@ class BoundaryModel:
             for i in self.X:
                 local_pos = self.X[i]
                 denom = 0.
-                for j in self.X:
+                for j in range(self.num_particles):
                     other_pos = self.X[j]
                     denom += self.kernel.W(local_pos - other_pos)
                 self.M[i] = (density0/denom) * coefficient

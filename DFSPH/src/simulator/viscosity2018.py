@@ -9,8 +9,10 @@ from typing import List, Tuple
 
 @ti.data_oriented
 class ViscositySolver:
-    def __init__(self, num_particles: ti.i32, mu: ti.f32, b_mu: ti.f32, fluid: FluidModel):
-        self.num_particles = num_particles
+    def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, mu: ti.f32, b_mu: ti.f32, fluid: FluidModel):
+        self.num_particles = ti.field(ti.i32, shape = ())
+        self.num_particles[None] = num_particles
+        self.max_num_particles = max_num_particles
         self.fluid = fluid
         self.support_radius = self.fluid.support_radius
         self.mu = mu
@@ -19,7 +21,8 @@ class ViscositySolver:
         self.eps2 = 1e-5
         self.d = 10.
         self.kernel = CubicSpline(self.fluid.support_radius)
-        self.row_contribution = ti.field(dtype=ti.f32, shape=(self.num_particles))
+        # I assume
+        self.row_contribution = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         self.matrix_entries = ti.i32
         self.m_matrix_entries = ti.i32
 
@@ -29,7 +32,7 @@ class ViscositySolver:
         matrix_entries = self.count_matrix_entries()
         # m_matrix_entries = self.count_m_matrix_entries()
         
-        A_builder = ti.linalg.SparseMatrixBuilder(self.num_particles*3, self.num_particles*3, max_num_triplets=matrix_entries)
+        A_builder = ti.linalg.SparseMatrixBuilder(self.num_particles[None]*3, self.num_particles[None]*3, max_num_triplets=matrix_entries)
         # A_triplets = ti.Vector.field(3, dtype=ti.f32, shape=(matrix_entries))
         # M_triplets = ti.Vector.field(3, dtype=ti.f32, shape=(m_matrix_entries))
 
@@ -41,20 +44,20 @@ class ViscositySolver:
         # data = A_triplets[:, 2]
         # row_idx = A_triplets[:, 0]
         # col_idx = A_triplets[:, 1]
-        # A_scipy = coo_matrix((data, (row_idx, col_idx)), shape=(self.num_particles*3, self.num_particles*3)).tocsc()
+        # A_scipy = coo_matrix((data, (row_idx, col_idx)), shape=(self.num_particles[None]*3, self.num_particles[None]*3)).tocsc()
 
         # M_triplets = M_triplets.to_numpy()
         # data = M_triplets[:, 2]
         # row_idx = M_triplets[:, 0]
         # col_idx = M_triplets[:, 1]
-        # M_scipy = coo_matrix((data, (row_idx, col_idx)), shape=(self.num_particles*3, self.num_particles*3)).tocsc()
+        # M_scipy = coo_matrix((data, (row_idx, col_idx)), shape=(self.num_particles[None]*3, self.num_particles[None]*3)).tocsc()
         
-        # b_field = ti.field(dtype=ti.f32, shape=(self.num_particles, 3))
-        b = self.fluid.V.to_numpy().reshape(-1)
+        # b_field = ti.field(dtype=ti.f32, shape=(self.num_particles[None], 3))
+        b = self.fluid.V.to_numpy().reshape(-1)[0:self.num_particles[None] * 3]
 
         # Solve sparse linear system using scipy conjugate gradient
         # x_, info = cg(A_scipy, b, M=M_scipy)
-        # preconditioner = spsolve(M_scipy, np.eye(self.num_particles*3))
+        # preconditioner = spsolve(M_scipy, np.eye(self.num_particles[None]*3))
         # x_, info = cg(A_scipy, b, M=M_scipy)
         # print(info)
 
@@ -70,31 +73,41 @@ class ViscositySolver:
         x = solver.solve(b)
         isSuccess = solver.info()
         # print("Diff: ", np.linalg.norm(x-x_))
-        if isSuccess: self.fluid.V.from_numpy(x.reshape(-1, 3))
+        if isSuccess: 
+            padding_length = (self.max_num_particles - self.num_particles[None]) * 3
+            padding = np.zeros(padding_length, dtype = float)
+            x = np.append(x, padding)
+            self.fluid.V.from_numpy(x.reshape(-1, 3))
         else: print("Viscosity solver failed")
-        return isSuccess          
+        return isSuccess
+
+    @ti.kernel
+    def increase_particles(self):
+        if self.num_particles[None] < self.max_num_particles:
+            self.num_particles[None] = self.num_particles[None] + 1
+        # print("increased particles in viscosity solver")   
             
     @ti.kernel
     def count_matrix_entries(self) -> ti.i32:
         count = 0
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             count += self.fluid.get_num_neighbors_i(i)
         # For each neigbor of a particle there is a 3x3 matrix block in the A matrix
         # Also add diagonal entries
-        return count*9 + self.num_particles*3
+        return count*9 + self.num_particles[None]*3
     
     @ti.kernel
     def count_m_matrix_entries(self) -> ti.i32:
         count = 0
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             count += 9
-        return count + self.num_particles*3
+        return count + self.num_particles[None]*3
 
     @ti.func
     def copy_V_to_b(self, V: ti.template(), b: ti.template()):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]:
                 for d in ti.static(range(3)):
                     b[i*3+d] = 0.
@@ -121,7 +134,7 @@ class ViscositySolver:
         # triplet_idx = 0
         # m_triplet_idx = 0
         # m_block = ti.Matrix([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
             local_X = X[i]
@@ -193,7 +206,7 @@ class ViscositySolver:
 
         # Add Identity on the diagonal
         # we still have to do it for the inactive particles to be sure to have a spd matrix
-        for i in range(3*self.num_particles):
+        for i in range(3*self.num_particles[None]):
             A_builder[i, i] += 1.
             # A_triplets[triplet_idx] = [i, i, 1.]
             # triplet_idx += 1

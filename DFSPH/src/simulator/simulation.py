@@ -6,26 +6,50 @@ from .dfsph import DensityAndPressureSolver
 from .viscosity2018 import ViscositySolver
 from .akinciBoundary2012 import BoundaryModel
 from .pointDatareader import readParticles
+from. emitter import Emitter
 
 
 @ti.data_oriented
 class Simulation:
     def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = ""):
-        self.num_particles = 0
+        # This is a bit of a nuisance, but the value couldn't be modified otherwise
+        # Now, num_particles can be accessed as self.num_particles[None]
+        self.num_particles = ti.field(ti.i32, shape = ())
+        self.max_num_particles = 10000
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
+        self.emitter = Emitter(2., 0.2, 2., 0.1)
 
         if pointData_file == "":
-            self.num_particles = num_particles
+            self.num_particles[None] = num_particles
         else:
             self.particle_array = readParticles(pointData_file)
+            points = self.particle_array
+            print("shape of array:")
+            print(points.shape)
+            x_coords = points[0:,0]
+            print("x_range: ")
+            print((min(x_coords),max(x_coords)))
+
+            y_coords = points[0:,1]
+            print("y_range: ")
+            print((min(y_coords),max(y_coords)))
+
+            z_coords = points[0:,2]
+            print("z_range: ")
+            print((min(z_coords),max(z_coords)))
             # append to the particle array itself
             # self.particle_array = np.append(self.particle_array, self.particle_array, axis=0)
-            self.num_particles = self.particle_array.shape[0]
+            self.num_particles[None] = self.particle_array.shape[0]
 
-        self.particle_field = ti.field(dtype = ti.f32, shape = (self.num_particles, 3))
+        self.particle_field = ti.field(dtype = ti.f32, shape = (self.max_num_particles, 3))
 
         if pointData_file != "":
+            if self.max_num_particles > self.num_particles[None]:
+                padding_length = self.max_num_particles - self.num_particles[None]
+                padding = np.zeros((padding_length, 3), dtype = float)
+                print(padding.shape)
+                self.particle_array = np.append(self.particle_array, padding, axis = 0)
             self.particle_field.from_numpy(self.particle_array)
 
         self.max_time = max_time
@@ -33,6 +57,7 @@ class Simulation:
         self.max_dt = max_dt
         self.dt = self.max_dt
         self.current_time = 0.
+        self.time_since_last_emit = 0.
         self.current_frame_id = 0
         self.time_since_last_frame_export = 0.
 
@@ -46,7 +71,8 @@ class Simulation:
         self.radius = self.support_radius / 4
 
         self.fluid = FluidModel(
-            num_particles=self.num_particles,
+            num_particles=self.num_particles[None],
+            max_num_particles=self.max_num_particles,
             max_dt=self.max_dt,
             density0=self.rest_density,
             support_radius=self.support_radius,
@@ -60,13 +86,17 @@ class Simulation:
         )
         self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius, pointData_file = boundary_pointData_file)
         
-        self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles, self.fluid)
-        self.viscositySolver = ViscositySolver(self.num_particles, self.mu, self.b_mu, self.fluid)
+        # may need self.max_num_particles
+        self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles[None], self.max_num_particles, self.fluid)
+        self.viscositySolver = ViscositySolver(self.num_particles[None], self.max_num_particles, self.mu, self.b_mu, self.fluid)
 
-        self.non_pressure_forces = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
+        self.non_pressure_forces = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
 
         self.debug = debug
         self.result_dir = result_dir
+
+    def should_emit(self):
+        return True
 
     def prolog(self):
         self.init_non_pressure_forces()
@@ -112,6 +142,12 @@ class Simulation:
         # print("After solver Speed Average: ", np.average(self.fluid.V.to_numpy()))
         self.fluid.explicit_update_position(self.dt)
 
+        if self.should_emit():
+            self.fluid.insert_particle(self.emitter.get_particle())            
+            self.viscositySolver.increase_particles()
+            self.densityAndPressureSolver.increase_particles()
+
+
         # Prepare Divergence Free Solver
         self.fluid.update_neighbors()
         self.fluid.update_density()
@@ -149,7 +185,8 @@ class Simulation:
 
     @ti.kernel
     def init_non_pressure_forces(self):
-        for i in range(self.num_particles):
+        # this should probebly be self.max_num_particles 
+        for i in range(self.max_num_particles):
             self.non_pressure_forces[i] = ti.Vector([0., -9.81, 0.])
 
     @ti.kernel
@@ -163,7 +200,7 @@ class Simulation:
         make_grid = (self.pointData_file == "")
         if make_grid:
             delta = self.support_radius / 2.
-            num_particles_x = int(self.num_particles**(1. / 3.)) + 1
+            num_particles_x = int(self.num_particles[None]**(1. / 3.)) + 1
             offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
             for i in range(num_particles_x):
                 for j in range(num_particles_x):
@@ -172,8 +209,8 @@ class Simulation:
                         # add velocity in z direction
                         # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
         else:
-            offset_1 = ti.Vector([0.,-1,0.],ti.f32)
-            for i in range(self.num_particles):
+            offset_1 = ti.Vector([0.,0.,0.],ti.f32)
+            for i in range(self.num_particles[None]):
                 x = self.particle_field[i,0]
                 y = self.particle_field[i,1]
                 z = self.particle_field[i,2]
@@ -181,7 +218,7 @@ class Simulation:
                 # self.fluid.V[i] = ti.Vector([0.,50.,0.],ti.f32)
 
             # offset_2 = ti.Vector([2.,1.3,2.],ti.f32)
-            # for i in range(self.num_particles/2, self.num_particles):
+            # for i in range(self.num_particles[None]/2, self.num_particles[None]):
             #     x = self.particle_field[i,0]
             #     y = self.particle_field[i,1]
             #     z = self.particle_field[i,2]
@@ -207,7 +244,7 @@ class Simulation:
     def compute_field_average(self, field: ti.template()) -> ti.f32:
         average = 0.
         count = 0
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             average += field[i]
             count += 1
@@ -216,7 +253,7 @@ class Simulation:
     @ti.kernel
     def compute_field_max(self, field: ti.template()) -> ti.f32:
         max = 0.
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             if field[i] > max:
                 max = field[i]
@@ -225,7 +262,7 @@ class Simulation:
     @ti.kernel
     def compute_field_min(self, field: ti.template()) -> ti.f32:
         min = 1e10
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             if field[i] < min:
                 min = field[i]
@@ -235,7 +272,7 @@ class Simulation:
     def compute_field_norm_average(self, field: ti.template()) -> ti.f32:
         average = 0.
         count = 0
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             average += field[i].norm()
             count += 1
@@ -244,7 +281,7 @@ class Simulation:
     @ti.kernel
     def compute_field_norm_max(self, field: ti.template()) -> ti.f32:
         max = 0.
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             if field[i].norm() > max:
                 max = field[i].norm()
@@ -253,7 +290,7 @@ class Simulation:
     @ti.kernel
     def compute_field_norm_min(self, field: ti.template()) -> ti.f32:
         min = 1e10
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             if field[i].norm() < min:
                 min = field[i].norm()
@@ -262,9 +299,9 @@ class Simulation:
     @ti.kernel
     def compare_adj_matrix(self) -> ti.i32:
         value = 0
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             num_neighbors_i = self.fluid.get_num_neighbors_i(i)
-            for j in range(self.num_particles):
+            for j in range(self.num_particles[None]):
                 if self.fluid.f_neighbors[i, j] == 1:
                     check = False
                     for l in range(num_neighbors_i):
@@ -289,8 +326,10 @@ class Simulation:
         # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[P_SOL]:{(self.pressure_solve):.1f},[P_I]:{self.pressure_iteration},[D_SOL]:{self.divergence_solve:1f},[D_I]:{self.divergence_iteration},[V]:{self.viscosity_sucess}", end="\r")
 
     def frame_export(self):
-        np.save(self.result_dir + f"frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy())
-        np.save(self.result_dir + f"frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy())
+        # no need to store inactive particles
+        # (this wasn't done from the start, so some exported frames still have a bunch of inactive particles)
+        np.save(self.result_dir + f"frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy()[:self.num_particles[None],])
+        np.save(self.result_dir + f"frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy()[:self.num_particles[None],])
 
     def save(self):
         np.save(self.result_dir + "results.npy", self.fluid.X.to_numpy())

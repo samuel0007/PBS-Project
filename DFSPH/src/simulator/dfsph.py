@@ -5,14 +5,16 @@ from .kernel import CubicSpline
 
 @ti.data_oriented
 class DensityAndPressureSolver:
-    def __init__(self, num_particles: ti.i32, fluid: FluidModel):
-        self.num_particles = num_particles
+    def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, fluid: FluidModel):
+        self.max_num_particles = max_num_particles
+        self.num_particles = ti.field(ti.i32, shape = ())
+        self.num_particles[None] = num_particles
         self.fluid = fluid
-        self.divergenceSolver = DivergenceSolver(num_particles, self.fluid)
-        self.densitySolver = DensitySolver(num_particles, self.fluid)
+        self.divergenceSolver = DivergenceSolver(num_particles, max_num_particles, self.fluid)
+        self.densitySolver = DensitySolver(num_particles, max_num_particles, self.fluid)
 
         # set alpha_i reference in both solvers
-        self.alpha_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
+        self.alpha_i = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         self.divergenceSolver.alpha_i = self.alpha_i
         self.densitySolver.alpha_i = self.alpha_i
 
@@ -20,9 +22,17 @@ class DensityAndPressureSolver:
 
         self.eps = 1e-5
 
+    @ti.kernel
+    def increase_particles(self):
+        if self.num_particles[None] < self.max_num_particles:
+            self.num_particles[None] = self.num_particles[None] + 1
+            # print("increased particles in DandP solver")   
+            self.divergenceSolver.increase_particles()
+            self.densitySolver.increase_particles()
+
     @ti.kernel    
     def update_alpha_i(self, f_X: ti.template(), f_M: ti.f32, f_density: ti.template(), f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template()):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue 
 
             denom_grad_sum = ti.Vector([0., 0., 0.], ti.f32)
@@ -50,13 +60,15 @@ class DensityAndPressureSolver:
 
 @ti.data_oriented
 class DivergenceSolver:
-    def __init__(self, num_particles: ti.i32, fluid: FluidModel):
-        self.num_particles = num_particles
+    def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, fluid: FluidModel):
+        self.num_particles = ti.field(ti.i32, shape = ())
+        self.num_particles[None] = num_particles
+        self.max_num_particles = max_num_particles
         self.fluid = fluid
-        self.alpha_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
-        self.density_adv = ti.field(dtype=ti.f32, shape=(self.num_particles))
-        self.kappa_v_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
-        self.factor_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
+        self.alpha_i = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.density_adv = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.kappa_v_i = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.factor_i = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
 
         self.kernel = CubicSpline(self.fluid.support_radius)
 
@@ -65,6 +77,12 @@ class DivergenceSolver:
 
         self.tol = 1e-4
         self.eps = 1e-5
+    
+    @ti.func
+    def increase_particles(self):
+        if self.num_particles[None] < self.max_num_particles:
+            self.num_particles[None] = self.num_particles[None] + 1
+        # print("increased particles in divergence solver")   
 
     def solve(self, fluid: FluidModel, dt):
         # print(fluid.V)
@@ -85,7 +103,7 @@ class DivergenceSolver:
 
     @ti.kernel
     def update_velocity(self, M: ti.f32, X: ti.template(), V: ti.template(), f_neighbors: ti.template(), b_M: ti.template(), b_X: ti.template(), b_neighbors: ti.template(), dt: ti.f32):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
             vel_sum = ti.Vector([0., 0., 0.], ti.f32)
@@ -105,7 +123,7 @@ class DivergenceSolver:
                 if local_factor > self.eps:
                     vel_sum += b_M[j] * local_factor * self.kernel.W_grad(local_pos - b_X[j])
 
-            # for j in range(self.num_particles):
+            # for j in range(self.num_particles[None]):
             #     if f_neighbors[i, j] == 1:
             #         ksum = local_factor + self.factor_i[j]
             #         if(ksum > self.eps):
@@ -123,7 +141,7 @@ class DivergenceSolver:
 
     @ti.kernel
     def compute_kappa_v_i(self, density: ti.template(), dt: ti.f32):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
             if self.density_adv[i] > self.eps and self.alpha_i[i] > self.eps:
@@ -136,7 +154,7 @@ class DivergenceSolver:
         
     @ti.kernel
     def compute_density_adv(self, M: ti.f32, X: ti.template(), V: ti.template(), f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template(), number_of_neighbors: ti.template()):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
             if number_of_neighbors[i] < 20:
@@ -159,7 +177,7 @@ class DivergenceSolver:
                 local_sum += b_M[j] * local_vel.dot(self.kernel.W_grad(local_pos - b_X[j]))
 
 
-            # for j in range(self.num_particles):
+            # for j in range(self.num_particles[None]):
             #     if f_neighbors[i, j] == 1:
             #         local_sum += M * (local_vel - V[j]).dot(self.kernel.W_grad(local_pos - X[j]))
 
@@ -175,25 +193,27 @@ class DivergenceSolver:
     def compute_field_average(self, field: ti.template()) -> ti.f32:
         local_sum = 0.
         count = 0
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             local_sum += field[i]
             count += 1
         return local_sum / count
 @ti.data_oriented 
 class DensitySolver:
-    def __init__(self, num_particles: ti.i32, fluid: FluidModel):
-        self.num_particles = num_particles
+    def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, fluid: FluidModel):
+        self.num_particles = ti.field(ti.i32, shape = ())
+        self.num_particles[None] = num_particles
+        self.max_num_particles = max_num_particles
         self.fluid = fluid
         self.support_radius = self.fluid.support_radius
-        self.alpha_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
-        self.kappa_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
+        self.alpha_i = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.kappa_i = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
 
-        self.warm_factor_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
+        self.warm_factor_i = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         self.warmed = False
 
-        self.factor_i = ti.field(dtype=ti.f32, shape=(self.num_particles))
-        self.density_predict = ti.field(dtype=ti.f32, shape=(self.num_particles))
+        self.factor_i = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.density_predict = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
 
         self.kernel = CubicSpline(self.fluid.support_radius)
 
@@ -202,6 +222,12 @@ class DensitySolver:
         self.tol = 1e-2
         self.max_iter = 100
         self.min_iter = 1
+
+    @ti.func
+    def increase_particles(self):
+        if self.num_particles[None] < self.max_num_particles:
+            self.num_particles[None] = self.num_particles[None] + 1
+        # print("increased particles in density solver")   
 
     def solve(self, fluid: FluidModel, dt: ti.f32):
         density_avg = self.compute_density_avg(fluid.density)
@@ -225,7 +251,7 @@ class DensitySolver:
     def compute_density_avg(self, density: ti.template()) -> ti.f32:
         density_avg = 0.
         count = 0
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             density_avg += density[i]
             count += 1
@@ -233,14 +259,14 @@ class DensitySolver:
 
     @ti.kernel
     def warm_start(self):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
             self.factor_i[i] = self.warm_factor_i[i]
 
     @ti.kernel
     def predict_density(self, X: ti.template(), V: ti.template(), f_density: ti.template(), f_M: ti.f32, f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template(), density_0: ti.f32, dt: ti.f32):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             value = 0.
             local_pos = X[i]
@@ -257,7 +283,7 @@ class DensitySolver:
                 value += b_M[j] * local_vel.dot(self.kernel.W_grad(local_pos - b_X[j]))
 
 
-            # for j in range(self.num_particles):
+            # for j in range(self.num_particles[None]):
             #     if f_neighbors[i, j] == 1:
             #         value += f_M * (local_vel - V[j]).dot(self.kernel.W_grad(local_pos - X[j]))
             
@@ -271,7 +297,7 @@ class DensitySolver:
             # self.density_predict[i] = self.fluid.density[i] + dt*value
     @ti.kernel
     def compute_kappa_i(self, f_density: ti.template(), rest_density: ti.f32, dt: ti.f32):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
             if abs(self.density_predict[i] - rest_density) > self.eps:
@@ -285,7 +311,7 @@ class DensitySolver:
 
     @ti.kernel
     def update_velocity(self, f_X:ti.template(), f_V: ti.template(), f_mass: ti.f32, f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template(), dt: ti.f32):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
             vel_diff = ti.Vector([0., 0., 0.], ti.f32)
@@ -305,7 +331,7 @@ class DensitySolver:
                 vel_diff += b_M[j] * local_factor * self.kernel.W_grad(local_pos - b_X[j])
                 
 
-            # for j in range(self.num_particles):
+            # for j in range(self.num_particles[None]):
             #     if f_neighbors[i, j] == 1:
             #         vel_diff += f_mass * (local_factor + self.factor_i[j]) * self.kernel.W_grad(local_pos - f_X[j])
 

@@ -13,6 +13,8 @@ def readParticles_multi(filearray, align_modes = [], offsetarray = []):
     align_mode 2(center around origin)\n"""
     points = []
     i = 0
+    if len(filearray) == 0:
+        return np.array([[2.,0.2,2.], [2.1,0.2,2.]],float)
     for file in filearray:
         if len(points) == 0:
             points = readParticles(file, align_modes[i], offsetarray[i])
@@ -56,6 +58,11 @@ def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0])):
     elif format == "bgeo":
         # TODO, may not be needed
         pass
+    elif format == "npy":
+        points = np.load(file)
+        # slice away zeroes (could be wrong)
+        points = np.array(points[points != np.array([0., 0., 0.])]).reshape((-1,3))
+
 
     
     if align_mode == 1:
@@ -63,6 +70,9 @@ def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0])):
         for coord in range(3): points[0:,coord] -= min(points[0:,coord])
     elif align_mode == 2:
         for coord in range(3): points[0:,coord] -= (min(points[0:,coord])+max(points[0:,coord]))/2
+    elif align_mode == 3:
+        points[0:,1] -= min(points[0:,1])
+        for coord in (0,2): points[0:,coord] -= (min(points[0:,coord])+max(points[0:,coord]))/2
 
     points[:,] += offset
     return points    
@@ -71,21 +81,21 @@ def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0])):
 
 
 def main(file):
-    points = readParticles(file, 2, [1,2,1])
+    points = readParticles(file)
     print("shape of array:")
     print(points.shape)
     print(points)
-    x_coords = points[0:-1,0]
+    x_coords = points[0:,0]
     print("x_range: ")
     print((min(x_coords),max(x_coords)))
 
-    y_coords = points[0:-1,1]
+    y_coords = points[0:,1]
     print("y_range: ")
     print((min(y_coords),max(y_coords)))
 
-    z_coords = points[0:-1,2]
+    z_coords = points[0:,2]
     print("z_range: ")
     print((min(z_coords),max(z_coords)))
 
 if __name__ == '__main__':
-    main(r"src\pointDataMetaFiles\test.txt")
+    main(r"src\pointDataFiles\erlenmayer_quickerstart.npy")
