@@ -12,13 +12,13 @@ from. emitter import Emitter
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float,\
-         bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32,\
-             mu: ti.f32, b_mu: ti.f32, gamma: ti.f32, is_frame_export=False, debug=False,\
-                 result_dir="results/example/", pointData_file = "", \
-                    boundary_pointData_file = "", is_uniform_export = False,\
-                        initial_fluid_velocity: ti.f32 = 0., emission_velocity: ti.f32 = 0.,\
-                            particles_per_second: ti.f32 = 0):
+    def __init__(self, num_particles: int, max_time: float, max_dt: float,
+            bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32,
+            mu: ti.f32, b_mu: ti.f32, gamma: ti.f32, is_frame_export=False, debug=False,
+            result_dir="results/example/", pointData_file = "", 
+            boundary_pointData_file = "", is_uniform_export = False,
+            initial_fluid_velocity: ti.f32 = 0., emission_velocity: ti.f32 = 0.,
+            particles_per_second: ti.f32 = 0):
         # This is a bit of a nuisance, but the value couldn't be modified otherwise
         # Now, num_particles can be accessed as self.num_particles[None]
         self.num_particles = ti.field(ti.i32, shape = ())
@@ -96,8 +96,8 @@ class Simulation:
         )
         self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius, pointData_file = boundary_pointData_file)
         
-        self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles, self.fluid)
-        self.viscositySolver = ViscositySolver(self.num_particles, self.mu, self.b_mu, self.fluid)
+        self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles[None], self.max_num_particles, self.fluid)
+        self.viscositySolver = ViscositySolver(self.num_particles[None], self.max_num_particles, self.mu, self.b_mu, self.fluid)
 
         self.gamma = gamma
         self.temperatureSolver = TemperatureSolver(self.gamma, self.fluid)

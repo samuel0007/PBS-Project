@@ -7,12 +7,12 @@ class TemperatureSolver:
         self.gamma = gamma
         self.fluid = fluid
 
-        self.laplacian = ti.field(dtype=ti.f32, shape=(fluid.num_particles))
+        self.laplacian = ti.field(dtype=ti.f32, shape=(self.fluid.max_num_particles))
         self.eps = 1e-5
     
     @ti.kernel
     def compute_laplacian(self):
-        for i in range(self.fluid.num_particles):
+        for i in range(self.fluid.num_particles[None]):
             if not self.fluid.active[i]: continue
             laplacian = 0.
             local_pos = self.fluid.X[i]
@@ -27,7 +27,7 @@ class TemperatureSolver:
             self.laplacian[i] = 2*laplacian
     @ti.kernel
     def explicit_temperature_update(self, dt: ti.f32):
-        for i in range(self.fluid.num_particles):
+        for i in range(self.fluid.num_particles[None]):
             if not self.fluid.active[i]: continue
             self.fluid.T[i] += dt * self.gamma * self.laplacian[i]
             if self.fluid.T[i] < 0:

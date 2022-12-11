@@ -4,7 +4,7 @@ from src.simulator.simulation import Simulation
 from src.renderer.renderer import Renderer
 # from src.renderer.pyvista_renderer import Renderer
 
-RESULT_DIR = "results/run_flask_3/" # directory has to exist, otherwise crash
+RESULT_DIR = "results/run_flask_1/" # directory has to exist, otherwise crash
 BOUNDS = 4. 
 REST_DENSITY = 300
 RADIUS = 0.025
@@ -27,7 +27,7 @@ EMISSION_VELOCITY = 50.
 PARTICLES_PER_SECOND = 2000
 
 MU = 500
-B_MU = 10000
+B_MU = 100
 
 # Run Simulation
 ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=8)
