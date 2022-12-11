@@ -17,22 +17,22 @@ NUM_PARTICLES = 10**3
 MAX_TIME = 5.
 
 # Those are upwards velocities
-INITIAL_FLUID_VELOCITY = 50.
-EMISSION_VELOCITY = 50.
+INITIAL_FLUID_VELOCITY = 0.
+EMISSION_VELOCITY = 0.
 
-PARTICLES_PER_SECOND = 2000
+PARTICLES_PER_SECOND = 1500
 
-MU = 500
-B_MU = 10000
+MU = 1500
+B_MU = 500
 
 # Run Simulation
 ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=8)
-simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=B_MU, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,\
-    pointData_file=r"src/pointDataFiles/erlenmayer_quickerstart.npy", boundary_pointData_file = r"src/pointDataMetaFiles/flask_on_plane.txt", is_uniform_export=True,\
-    initial_fluid_velocity = INITIAL_FLUID_VELOCITY, emission_velocity = EMISSION_VELOCITY,\
-    particles_per_second = PARTICLES_PER_SECOND)
-simulation.run()
+# simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=B_MU, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,\
+#     pointData_file=r"src/pointDataFiles/erlenmayer_quickerstart.npy", boundary_pointData_file = r"src/pointDataMetaFiles/flask_on_plane.txt", is_uniform_export=True,\
+#     initial_fluid_velocity = INITIAL_FLUID_VELOCITY, emission_velocity = EMISSION_VELOCITY,\
+#     particles_per_second = PARTICLES_PER_SECOND)
+# simulation.run()
 
 # Render Simulation
-renderer = Renderer(bounds=BOUNDS, result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=True, render_density=False, mass=MASS, start_frame=120)
+renderer = Renderer(bounds=BOUNDS, result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=True, render_density=False, mass=MASS, start_frame=1100)
 renderer.render()
