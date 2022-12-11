@@ -11,14 +11,23 @@ from. emitter import Emitter
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = "", is_uniform_export = False):
+    def __init__(self, num_particles: int, max_time: float, max_dt: float,\
+         bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32,\
+             mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False,\
+                 result_dir="results/example/", pointData_file = "", \
+                    boundary_pointData_file = "", is_uniform_export = False,\
+                        initial_fluid_velocity: ti.f32 = 0., emission_velocity: ti.f32 = 0.,\
+                            particles_per_second: ti.f32 = 0):
         # This is a bit of a nuisance, but the value couldn't be modified otherwise
         # Now, num_particles can be accessed as self.num_particles[None]
         self.num_particles = ti.field(ti.i32, shape = ())
         self.max_num_particles = 10000
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
-        self.emitter = Emitter(2., 0.2, 2., 0.1)
+        self.emitter = Emitter(2., 0.2, 2., 0.1, particles_per_second)
+
+        self.initial_fluid_velocity = initial_fluid_velocity
+        self.emission_velocity = emission_velocity
 
         if pointData_file == "":
             self.num_particles[None] = num_particles
@@ -78,9 +87,9 @@ class Simulation:
             support_radius=self.support_radius,
             mass=self.mass,
             x_min=0,
-            x_max=self.bounds + 2,
+            x_max=self.bounds,
             y_min=0,
-            y_max=self.bounds*2,
+            y_max=self.bounds,
             z_min=0,
             z_max=self.bounds,
         )
@@ -96,11 +105,6 @@ class Simulation:
         self.result_dir = result_dir
         self.is_uniform_export = is_uniform_export
 
-    def should_emit(self):
-        return True
-
-    def should_emit(self):
-        return True
 
     def prolog(self):
         self.init_non_pressure_forces()
@@ -150,10 +154,7 @@ class Simulation:
         # print("After solver Speed Average: ", np.average(self.fluid.V.to_numpy()))
         self.fluid.explicit_update_position(self.dt)
 
-        if self.should_emit():
-            self.fluid.insert_particle(self.emitter.get_particle())            
-            self.viscositySolver.increase_particles()
-            self.densityAndPressureSolver.increase_particles()
+        self.emit_particles()
 
 
         # Prepare Divergence Free Solver
@@ -191,6 +192,14 @@ class Simulation:
             # pass
             self.log_state()
 
+    def emit_particles(self):
+        vel = ti.Vector([0., self.emission_velocity, 0.], ti.f32)
+        particles = self.emitter.emit_particles(self.dt)
+        for pos in particles:
+            self.fluid.insert_particle(pos, vel)            
+            self.viscositySolver.increase_particles()
+            self.densityAndPressureSolver.increase_particles()
+
     @ti.kernel
     def init_non_pressure_forces(self):
         # this should probebly be self.max_num_particles 
@@ -224,7 +233,7 @@ class Simulation:
                 y = self.particle_field[i,1]
                 z = self.particle_field[i,2]
                 self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset_1
-                # self.fluid.V[i] = ti.Vector([0.,50.,0.],ti.f32)
+                self.fluid.V[i] = ti.Vector([0.,self.initial_fluid_velocity,0.],ti.f32)
 
             # offset_2 = ti.Vector([2.,1.3,2.],ti.f32)
             # for i in range(self.num_particles[None]/2, self.num_particles[None]):

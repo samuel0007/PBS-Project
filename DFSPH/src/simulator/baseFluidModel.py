@@ -110,10 +110,10 @@ class FluidModel:
         self.update_b_neighbor_list()
 
     @ti.kernel
-    def insert_particle(self, pos: ti.types.vector(3, ti.f32)):
+    def insert_particle(self, pos: ti.types.vector(3, ti.f32), vel: ti.types.vector(3,ti.f32)):
         if self.num_particles[None] < self.max_num_particles:
             self.X[self.num_particles[None]] = pos
-            self.V[self.num_particles[None]] = ti.Vector([0.,5.0,0.])
+            self.V[self.num_particles[None]] = vel
             self.active[self.num_particles[None]] = 1
             self.num_particles[None] = self.num_particles[None] + 1
 
