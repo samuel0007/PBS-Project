@@ -65,6 +65,7 @@ class FluidModel:
         self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.active = ti.field(dtype=ti.i32, shape=(self.num_particles))
         self.active.fill(1) # At the beginning, all particles are active
+        self.T = ti.field(dtype=ti.f32, shape=(self.num_particles))
         self.density = ti.field(dtype=ti.f32, shape=(self.num_particles))
         self.f_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
         self.f_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles))

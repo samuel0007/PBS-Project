@@ -1,16 +1,17 @@
 import taichi as ti
 import numpy as np
-import time
 from .baseFluidModel import FluidModel
 from .dfsph import DensityAndPressureSolver
 from .viscosity2018 import ViscositySolver
 from .akinciBoundary2012 import BoundaryModel
+from .temperature import TemperatureSolver
 from .pointDatareader import readParticles
+import os
 
 
 @ti.data_oriented
 class Simulation:
-    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = "", is_uniform_export = False):
+    def __init__(self, num_particles: int, max_time: float, max_dt: float, bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32, mu: ti.f32, b_mu: ti.f32, gamma: ti.f32, is_frame_export=False, debug=False, result_dir="results/example/", pointData_file = "", boundary_pointData_file = "", is_uniform_export = False):
         self.num_particles = 0
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
@@ -52,9 +53,9 @@ class Simulation:
             support_radius=self.support_radius,
             mass=self.mass,
             x_min=0,
-            x_max=self.bounds + 2,
+            x_max=self.bounds,
             y_min=0,
-            y_max=self.bounds*2,
+            y_max=self.bounds,
             z_min=0,
             z_max=self.bounds,
         )
@@ -63,6 +64,9 @@ class Simulation:
         self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles, self.fluid)
         self.viscositySolver = ViscositySolver(self.num_particles, self.mu, self.b_mu, self.fluid)
 
+        self.gamma = gamma
+        self.temperatureSolver = TemperatureSolver(self.gamma, self.fluid)
+
         self.non_pressure_forces = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
 
         self.debug = debug
@@ -70,6 +74,8 @@ class Simulation:
         self.is_uniform_export = is_uniform_export
 
     def prolog(self):
+        os.makedirs(self.result_dir + "data", exist_ok=True)
+
         self.init_non_pressure_forces()
         self.set_initial_fluid_condition()
 
@@ -93,11 +99,11 @@ class Simulation:
         # Print number of active particles
         print("Number of active particles: ", self.fluid.get_num_active_particles())
 
-        np.save(self.result_dir + "boundary.npy", self.fluid.b_X.to_numpy())
+        np.save(self.result_dir + "data/boundary.npy", self.fluid.b_X.to_numpy())
 
         if self.is_uniform_export:
             self.fluid.generate_uniform_pos()
-            np.save(self.result_dir + "uniform_pos.npy", self.fluid.uniform_pos.to_numpy())
+            np.save(self.result_dir + "data/uniform_pos.npy", self.fluid.uniform_pos.to_numpy())
 
     def step(self):
         # Explicitly Apply non pressure forces
@@ -138,6 +144,9 @@ class Simulation:
         # Divergence Free Solver
         self.divergence_solve, self.divergence_iteration = self.densityAndPressureSolver.divergenceSolver.solve(self.fluid, self.dt)
 
+
+        self.temperatureSolver.update_temperature(self.dt)
+
         # Implicit Viscosity Solver
         # print("Velocity Average: ", np.average(self.fluid.V.to_numpy()))
         self.viscosity_sucess = self.viscositySolver.solve(self.dt)
@@ -165,34 +174,26 @@ class Simulation:
 
     @ti.kernel
     def set_initial_fluid_condition(self):  
-        make_grid = (self.pointData_file == "")
-        if make_grid:
+        if not self.pointData_file:
             delta = self.support_radius / 2.
             num_particles_x = int(self.num_particles**(1. / 3.)) + 1
-            offs = ti.Vector([2.72, 3.2, 1]) 
+            offs = ti.Vector([1., 1., 1.]) 
             # offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
             for i in range(num_particles_x):
                 for j in range(num_particles_x):
                     for k in range(num_particles_x):
                         self.fluid.X[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([i, j, k], ti.f32) * delta + offs
+                        self.fluid.T[i * num_particles_x * num_particles_x + j * num_particles_x + k] = j*delta*100
+
                         # add velocity in z direction
                         # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
         else:
-            offset_1 = ti.Vector([2.85,3,1.],ti.f32)
             for i in range(self.num_particles):
                 x = self.particle_field[i,0]
                 y = self.particle_field[i,1]
                 z = self.particle_field[i,2]
-                self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset_1
-                # self.fluid.V[i] = ti.Vector([0.,50.,0.],ti.f32)
-
-            # offset_2 = ti.Vector([2.,1.3,2.],ti.f32)
-            # for i in range(self.num_particles/2, self.num_particles):
-            #     x = self.particle_field[i,0]
-            #     y = self.particle_field[i,1]
-            #     z = self.particle_field[i,2]
-            #     self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset_2
-            #     self.fluid.V[i] = ti.Vector([0.,-50.,0.],ti.f32)
+                self.fluid.X[i] = ti.Vector([x,y,z], ti.f32) 
+                self.fluid.T[i] = z*10
 
     def run(self):
         self.prolog()
@@ -208,7 +209,6 @@ class Simulation:
     
     def postlog(self):
         self.save()
-
 
     @ti.kernel
     def compute_field_average(self, field: ti.template()) -> ti.f32:
@@ -290,21 +290,26 @@ class Simulation:
         B_cnt_avg = self.fluid.get_num_b_neighbors_avg()
         F_cnt_avg = self.fluid.get_num_neighbors_avg()
         num_active_particles = self.fluid.get_num_active_particles()
+        T_max = self.compute_field_max(self.fluid.T)
+        T_min = self.compute_field_min(self.fluid.T)
+        laplacian_max = self.compute_field_max(self.temperatureSolver.laplacian)
 
-        print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles}", end="\r")
-
+        # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles}", end="\r")
+        print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[L_MAX]: {laplacian_max}", end="\r")
         # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[P_SOL]:{(self.pressure_solve):.1f},[P_I]:{self.pressure_iteration},[D_SOL]:{self.divergence_solve:1f},[D_I]:{self.divergence_iteration},[V]:{self.viscosity_sucess}", end="\r")
 
     def frame_export(self):
-        np.save(self.result_dir + f"frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy())
-        np.save(self.result_dir + f"frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy())
+        np.save(self.result_dir + f"data/frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy())
+        np.save(self.result_dir + f"data/frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy())
+        np.save(self.result_dir + f"data/frame_temperature_{self.current_frame_id}.npy", self.fluid.T.to_numpy())
+
         if self.is_uniform_export:
             self.fluid.compute_uniform_field()
-            np.save(self.result_dir + f"frame_uniform_{self.current_frame_id}.npy", self.fluid.uniform_field.to_numpy())
+            np.save(self.result_dir + f"data/frame_uniform_{self.current_frame_id}.npy", self.fluid.uniform_field.to_numpy())
 
 
     def save(self):
-        np.save(self.result_dir + "results.npy", self.fluid.X.to_numpy())
+        np.save(self.result_dir + "data/results.npy", self.fluid.X.to_numpy())
 
     
 
