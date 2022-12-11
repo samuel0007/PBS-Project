@@ -66,6 +66,7 @@ class FluidModel:
         self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
         self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
         self.T = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.mu = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         self.active = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
         self.active.fill(1) 
         # At the beginning, all particles with index < num_particles are active
@@ -83,9 +84,16 @@ class FluidModel:
         self.b_num_particles = b_X.shape[0]
         self.b_X = b_X
         self.b_M = b_M
-        # again maybe max_neighbors
+        self.b_mu = ti.field(dtype=ti.f32, shape=(self.b_num_particles))
         self.b_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles, self.b_num_particles))
-
+    
+    @ti.kernel
+    def set_initial_viscosity(self, mu: ti.f32, b_mu: ti.template()):
+        for i in range(self.max_num_particles):
+            self.mu[i] = mu
+        for i in range(self.b_num_particles):
+            self.b_mu[i] = b_mu[i]
+        
     @ti.kernel
     def CFL_condition(self) -> ti.f32:
         max_V = 0.
@@ -98,6 +106,7 @@ class FluidModel:
     @ti.kernel
     def explicit_update_position(self, dt: ti.f32):
         for i in range(self.num_particles[None]):
+            if not self.active[i]: continue
             self.X[i] += self.V[i] * dt
 
     def update_neighbors(self):
@@ -174,8 +183,6 @@ class FluidModel:
             #deactivate particle if out of bounds
             if not check:
                 self.active[i] = 0
-                print(pos)
-                print(cell)
                 continue
             
             if not ti.is_active(self.grid_snode, cell):

@@ -97,7 +97,7 @@ class Simulation:
         self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius, pointData_file = boundary_pointData_file)
         
         self.densityAndPressureSolver = DensityAndPressureSolver(self.num_particles[None], self.max_num_particles, self.fluid)
-        self.viscositySolver = ViscositySolver(self.num_particles[None], self.max_num_particles, self.mu, self.b_mu, self.fluid)
+        self.viscositySolver = ViscositySolver(self.num_particles[None], self.max_num_particles, self.fluid)
 
         self.gamma = gamma
         self.temperatureSolver = TemperatureSolver(self.gamma, self.fluid)
@@ -118,6 +118,12 @@ class Simulation:
         self.boundary.compute_M(self.fluid.density0)
 
         self.fluid.set_boundary_particles(self.boundary.X, self.boundary.M)
+
+        b_mu_field = ti.field(ti.f32, shape = (self.fluid.b_num_particles))
+        # constant numpy array with b_mu value
+        b_mu_np = np.full((self.fluid.b_num_particles), self.b_mu)
+        b_mu_field.from_numpy(b_mu_np)
+        self.fluid.set_initial_viscosity(self.mu, b_mu_field)
 
         self.fluid.update_neighbors()
         self.fluid.update_b_neighbors()
@@ -246,8 +252,6 @@ class Simulation:
                 self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset_1
                 self.fluid.V[i] = ti.Vector([0.,self.initial_fluid_velocity,0.],ti.f32)
                 self.fluid.T[i] = y*10
-
-            
 
     def run(self):
         self.prolog()

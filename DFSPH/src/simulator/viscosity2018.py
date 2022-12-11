@@ -9,19 +9,17 @@ from typing import List, Tuple
 
 @ti.data_oriented
 class ViscositySolver:
-    def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, mu: ti.f32, b_mu: ti.f32, fluid: FluidModel):
+    def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, fluid: FluidModel):
         self.num_particles = ti.field(ti.i32, shape = ())
         self.num_particles[None] = num_particles
         self.max_num_particles = max_num_particles
         self.fluid = fluid
         self.support_radius = self.fluid.support_radius
-        self.mu = mu
-        self.b_mu = b_mu
+
         self.eps = 1e-2
         self.eps2 = 1e-5
         self.d = 10.
         self.kernel = CubicSpline(self.fluid.support_radius)
-        # I assume
         self.row_contribution = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         self.matrix_entries = ti.i32
         self.m_matrix_entries = ti.i32
@@ -139,19 +137,21 @@ class ViscositySolver:
 
             local_X = X[i]
             local_density = density[i]
+            local_mu = self.fluid.mu[i]
 
             sum_j = ti.Matrix([[0., 0., 0.], [0., 0., 0.], [0., 0., 0.]])
 
             num_neighbors_i = self.fluid.get_num_neighbors_i(i)
             for l in range(num_neighbors_i):
                 j = self.fluid.neighbor_list[i,l]
+                mu = 0.5*(local_mu + self.fluid.mu[j])
                 if i == j: continue
                 x_ij = local_X - X[j]
                 norm_x_ij = x_ij.norm_sqr()
                 if norm_x_ij < self.eps2:
                     continue
 
-                factor = self.d*self.mu*f_M/(local_density*density[j])
+                factor = self.d*mu*f_M/(local_density*density[j])
                 if factor < self.eps2:
                     continue
                 grad_i = self.kernel.W_grad(x_ij)
@@ -174,11 +174,12 @@ class ViscositySolver:
             for l in range(num_b_neighbors_i):
                 k = self.fluid.b_neighbor_list[i,l]
                 x_ik = local_X - self.fluid.b_X[k]
+                b_mu = self.fluid.b_mu[k]
                 norm_x_ik = x_ik.norm_sqr()
                 if norm_x_ik < self.eps2:
                     continue
 
-                factor = self.d*self.b_mu*self.fluid.mass/(local_density2)
+                factor = self.d*b_mu*self.fluid.mass/(local_density2)
                 if factor < self.eps2:
                     continue
                 grad_ik = self.kernel.W_grad(x_ik)

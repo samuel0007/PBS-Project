@@ -99,7 +99,7 @@ class Renderer:
             else:
                 p.add_mesh(particles, point_size=10, render_points_as_spheres=True)
             if self.render_boundary:
-                p.add_mesh(self.b_particles_data, point_size=3, render_points_as_spheres=True, opacity=0.01)
+                p.add_mesh(self.b_particles_data, point_size=3, render_points_as_spheres=True, opacity=0.05)
             
             # print(particles.shape)
             cpos = [(10, 5, 10), (0.0, 0.0, 0.0), (0.018, 0.99, -0.06)]
