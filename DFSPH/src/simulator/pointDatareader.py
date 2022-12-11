@@ -12,18 +12,24 @@ def readParticles_multi(filearray, align_modes = [], offsetarray = []):
     align_mode 1(align into origin corner)\n
     align_mode 2(center around origin)\n"""
     points = []
+    IDs = np.array([],dtype = int)
     i = 0
     if len(filearray) == 0:
-        return np.array([[2.,0.2,2.], [2.1,0.2,2.]],float)
+        return np.array([[2.,0.2,2.], [2.1,0.2,2.]],float), np.array([0,0],int)
     for file in filearray:
         if len(points) == 0:
             points = readParticles(file, align_modes[i], offsetarray[i])
+            length = points.shape[0]
+            IDs = np.zeros(length, int)
         else:
-            points = np.append(points, readParticles(file, align_modes[i], offsetarray[i]), axis = 0)
+            new_points = readParticles(file, align_modes[i], offsetarray[i])
+            new_length = new_points.shape[0]
+            points = np.append(points, new_points, axis = 0)
+            IDs = np.append(IDs, np.ones(new_length,int) * i)
         i+=1
-    return points
+    return points, IDs
 
-def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0])):
+def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0]), request_IDs = False):
     """currently only support for vtk or txt (metafile)\n
     align_mode 0(leave data as is)\n
     align_mode 1(align into origin corner)\n
@@ -48,8 +54,11 @@ def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0])):
         # print(filenames)
         # print(align_modes)
         # print(offsets)
-        points = readParticles_multi(filenames, align_modes, offsets)
-        return points
+        points, IDs = readParticles_multi(filenames, align_modes, offsets)
+        if request_IDs:
+            return points, IDs
+        else:
+            return points
 
     points = None
     if format == "vtk":
@@ -81,7 +90,7 @@ def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0])):
 
 
 def main(file):
-    points = readParticles(file)
+    points, IDs = readParticles(file, request_IDs=True)
     print("shape of array:")
     print(points.shape)
     print(points)
@@ -97,5 +106,10 @@ def main(file):
     print("z_range: ")
     print((min(z_coords),max(z_coords)))
 
+    print(IDs)
+
+    arr = np.array([0.1 if IDs == 0 else 0.3], float)
+    print(arr)
+
 if __name__ == '__main__':
-    main(r"src\pointDataFiles\erlenmayer_quickerstart.npy")
+    main(r"src\pointDataMetaFiles\test.txt")

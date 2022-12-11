@@ -14,7 +14,7 @@ from. emitter import Emitter
 class Simulation:
     def __init__(self, num_particles: int, max_time: float, max_dt: float,
             bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32,
-            mu: ti.f32, b_mu: ti.f32, gamma: ti.f32, is_frame_export=False, debug=False,
+            mu: ti.f32, b_mu, gamma: ti.f32, is_frame_export=False, debug=False,
             result_dir="results/example/", pointData_file = "", 
             boundary_pointData_file = "", is_uniform_export = False,
             initial_fluid_velocity: ti.f32 = 0., emission_velocity: ti.f32 = 0.,
@@ -25,6 +25,7 @@ class Simulation:
         self.max_num_particles = 10000
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
+        self.boundary_pointData_file = boundary_pointData_file
         self.emitter = Emitter(2., 0.2, 2., 0.1, particles_per_second)
 
         self.initial_fluid_velocity = initial_fluid_velocity
@@ -120,8 +121,13 @@ class Simulation:
         self.fluid.set_boundary_particles(self.boundary.X, self.boundary.M)
 
         b_mu_field = ti.field(ti.f32, shape = (self.fluid.b_num_particles))
-        # constant numpy array with b_mu value
-        b_mu_np = np.full((self.fluid.b_num_particles), self.b_mu)
+
+        _, IDs = readParticles(self.boundary_pointData_file, request_IDs=True)
+
+        b_mu_np = np.zeros((self.fluid.b_num_particles), float)
+        for i in range(IDs.shape[0]):
+            b_mu_np[i] = self.b_mu[IDs[i]]
+        print(b_mu_np)
         b_mu_field.from_numpy(b_mu_np)
         self.fluid.set_initial_viscosity(self.mu, b_mu_field)
 
@@ -205,6 +211,7 @@ class Simulation:
         if self.debug:
             # pass
             self.log_state()
+
 
     def emit_particles(self):
         vel = ti.Vector([0., self.emission_velocity, 0.], ti.f32)
