@@ -20,7 +20,7 @@ def compute_colors_from_density(density: ti.template(), colors: ti.template()):
         colors[i] = ti.Vector([value*0.4, value*0.6, value*0.8], ti.f32 )
 
 class Renderer:
-    def __init__(self, bounds: ti.f32, result_dir: str, radius: ti.f32, start_frame=0, max_frame=-1, render_boundary=False, render_density=False, mass=-1, SHOW=True, framerate=24):
+    def __init__(self, bounds: ti.f32, result_dir: str, radius: ti.f32, start_frame=0, max_frame=-1, render_boundary=False, render_density=False, frame_step=1, mass=-1, SHOW=True, framerate=24):
         self.bounds = bounds
         self.x_bound = bounds
         self.y_bound = bounds
@@ -34,7 +34,7 @@ class Renderer:
         self.render_density = render_density    
 
         self.radius = radius
-        
+        self.frame_step = frame_step
         self.framerate = framerate
         self.SHOW = SHOW
 
