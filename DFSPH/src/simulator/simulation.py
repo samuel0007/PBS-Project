@@ -134,7 +134,7 @@ class Simulation:
 
         if self.is_uniform_export:
             self.fluid.generate_uniform_pos()
-            np.save(self.result_dir + "uniform_pos.npy", self.fluid.uniform_pos.to_numpy())
+            np.save(self.result_dir + "uniform_pos.npy", self.fluid.uniform_pos.to_numpy()[:self.num_particles[None],])
 
     def step(self):
         # Explicitly Apply non pressure forces
@@ -196,9 +196,11 @@ class Simulation:
         vel = ti.Vector([0., self.emission_velocity, 0.], ti.f32)
         particles = self.emitter.emit_particles(self.dt)
         for pos in particles:
-            self.fluid.insert_particle(pos, vel)            
-            self.viscositySolver.increase_particles()
-            self.densityAndPressureSolver.increase_particles()
+            if self.num_particles[None] < self.max_num_particles:
+                self.fluid.insert_particle(pos, vel)            
+                self.viscositySolver.increase_particles()
+                self.densityAndPressureSolver.increase_particles()
+                self.num_particles[None] += 1
 
     @ti.kernel
     def init_non_pressure_forces(self):
@@ -351,11 +353,11 @@ class Simulation:
         np.save(self.result_dir + f"frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy()[:self.num_particles[None],])
         if self.is_uniform_export:
             self.fluid.compute_uniform_field()
-            np.save(self.result_dir + f"frame_uniform_{self.current_frame_id}.npy", self.fluid.uniform_field.to_numpy())
+            np.save(self.result_dir + f"frame_uniform_{self.current_frame_id}.npy", self.fluid.uniform_field.to_numpy()[:self.num_particles[None],])
 
 
     def save(self):
-        np.save(self.result_dir + "results.npy", self.fluid.X.to_numpy())
+        np.save(self.result_dir + "results.npy", self.fluid.X.to_numpy()[:self.num_particles[None],])
 
     
 
