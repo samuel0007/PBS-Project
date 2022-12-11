@@ -5,9 +5,11 @@ from .kernel import CubicSpline, Poly6
 
 @ti.data_oriented
 class FluidModel:
-    def __init__(self, num_particles: ti.i32, max_dt: ti.f32, density0: ti.f32, support_radius: ti.f32, mass: ti.f32, x_min: ti.f32 = -1.5, x_max: ti.f32 = 1.5, \
+    def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, max_dt: ti.f32, density0: ti.f32, support_radius: ti.f32, mass: ti.f32, x_min: ti.f32 = -1.5, x_max: ti.f32 = 1.5, \
                           y_min: ti.f32 = -1.5, y_max: ti.f32 = 1.5, z_min: ti.f32 = -1.5, z_max: ti.f32 = 1.5):
-        self.num_particles = num_particles
+        self.num_particles = ti.field(ti.i32, shape = ())
+        self.num_particles[None] = num_particles
+        self.max_num_particles = max_num_particles
         self.density0 = density0
         self.support_radius = support_radius
         self.mass = mass
@@ -47,49 +49,55 @@ class FluidModel:
         #may not be needed
         #self.particles_in_cell = ti.field(dtype = ti.i32)
         #grid_snode.place(self.particles_in_cell)
-        self.max_neighbors = int(64)
+        self.max_neighbors = int(256)
 
         self.neighbor_list = ti.field(dtype = ti.i32)
-        self.neighbor_snode = ti.root.pointer(ti.i, self.num_particles)
+        self.neighbor_snode = ti.root.pointer(ti.i, self.max_num_particles)
         self.neighbor_structure = self.neighbor_snode.dynamic(ti.j, self.max_neighbors)
         self.neighbor_structure.place(self.neighbor_list)
 
         self.b_neighbor_list = ti.field(dtype = ti.i32)
-        self.b_neighbor_snode = ti.root.pointer(ti.i, self.num_particles)
+        self.b_neighbor_snode = ti.root.pointer(ti.i, self.max_num_particles)
         self.b_neighbor_structure = self.b_neighbor_snode.dynamic(ti.j, self.max_neighbors)
         self.b_neighbor_structure.place(self.b_neighbor_list)
                                      
         print("Num Cells:", (self.num_x_cells,self.num_y_cells,self.num_z_cells))
 
-        self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
-        self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
-        self.active = ti.field(dtype=ti.i32, shape=(self.num_particles))
-        self.active.fill(1) # At the beginning, all particles are active
-        self.T = ti.field(dtype=ti.f32, shape=(self.num_particles))
-        self.density = ti.field(dtype=ti.f32, shape=(self.num_particles))
-        self.f_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.num_particles))
-        self.f_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles))
-        self.b_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles))
-        self.number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles))
+        self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
+        self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
+        self.T = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.active = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
+        self.active.fill(1) 
+        # At the beginning, all particles with index < num_particles are active
+        for i in range(num_particles, self.max_num_particles):
+            self.active[i] = 0
+        self.density = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        # should maybe be max_neighbors
+        self.f_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles, self.max_num_particles))
+        self.f_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
+        self.b_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
+        self.number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
         self.kernel = CubicSpline(self.support_radius)
 
     def set_boundary_particles(self, b_X, b_M):
         self.b_num_particles = b_X.shape[0]
         self.b_X = b_X
         self.b_M = b_M
-        self.b_neighbors = ti.field(dtype=ti.i32, shape=(self.num_particles, self.b_num_particles))
+        # again maybe max_neighbors
+        self.b_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles, self.b_num_particles))
 
     @ti.kernel
     def CFL_condition(self) -> ti.f32:
         max_V = 0.
-        for i in range(self.num_particles):
+        # should be fine
+        for i in range(self.num_particles[None]):
             if self.active[i]:
                 max_V = max(max_V, self.V[i].norm())
         return min(self.max_dt, 0.4 * self.support_radius / max_V)
 
     @ti.kernel
     def explicit_update_position(self, dt: ti.f32):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             self.X[i] += self.V[i] * dt
 
     def update_neighbors(self):
@@ -102,13 +110,21 @@ class FluidModel:
         self.update_b_grid()
         self.update_b_neighbor_list()
 
+    @ti.kernel
+    def insert_particle(self, pos: ti.types.vector(3, ti.f32), vel: ti.types.vector(3,ti.f32)):
+        if self.num_particles[None] < self.max_num_particles:
+            self.X[self.num_particles[None]] = pos
+            self.V[self.num_particles[None]] = vel
+            self.active[self.num_particles[None]] = 1
+            self.num_particles[None] = self.num_particles[None] + 1
+
     # Dumb O(n^2) neighbor search, replace with grid based later
     @ti.kernel
     def update_neighbors_kernel(self):
         for i in range(self.num_particles):
             local_pos = self.X[i]
             f_count = 0
-            for j in range(self.num_particles):
+            for j in range(self.num_particles[None]):
                 if (local_pos - self.X[j]).norm() < self.support_radius:
                     self.f_neighbors[i, j] = 1
                     f_count += 1
@@ -152,12 +168,14 @@ class FluidModel:
         for i,j,k in self.grid_snode:
             ti.deactivate(self.grid_snode, [i,j,k])
 
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             pos = self.X[i]
             check, cell = self.get_cell(pos)
             #deactivate particle if out of bounds
             if not check:
                 self.active[i] = 0
+                print(pos)
+                print(cell)
                 continue
             
             if not ti.is_active(self.grid_snode, cell):
@@ -188,13 +206,13 @@ class FluidModel:
 
     @ti.kernel
     def update_neighbor_list(self):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             ti.deactivate(self.neighbor_snode, i)
             ti.activate(self.neighbor_snode, i)
 
 
         h2 = self.support_radius * self.support_radius
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             pos_i = self.X[i]
             check, cell = self.get_cell(pos_i)
             (x_cell, y_cell, z_cell) = cell
@@ -212,12 +230,12 @@ class FluidModel:
 
     @ti.kernel
     def update_b_neighbor_list(self):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             ti.deactivate(self.b_neighbor_snode, i)
             ti.activate(self.b_neighbor_snode, i)
 
         h2 = self.support_radius * self.support_radius
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             pos_i = self.X[i]
             check, cell = self.get_cell(pos_i)
             (x_cell, y_cell, z_cell) = cell
@@ -234,7 +252,7 @@ class FluidModel:
                                 ti.append(self.b_neighbor_structure, i, j)
     @ti.kernel
     def update_density(self):
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.active[i]: continue
             density = 0.
             local_pos = self.X[i]
@@ -251,23 +269,23 @@ class FluidModel:
     @ti.kernel
     def get_num_neighbors_avg(self) -> ti.f32:
         avg = 0.
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.active[i]: continue
             avg += self.get_num_neighbors_i(i)
-        return avg / self.num_particles
+        return avg / self.num_particles[None]
     
     @ti.kernel
     def get_num_b_neighbors_avg(self) -> ti.f32:
         avg = 0.
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if not self.active[i]: continue
             avg += self.get_num_b_neighbors_i(i)
-        return avg / self.num_particles
+        return avg / self.num_particles[None]
 
     @ti.kernel
     def get_num_active_particles(self) -> ti.i32:
         num = 0
-        for i in range(self.num_particles):
+        for i in range(self.num_particles[None]):
             if self.active[i]: num += 1
         return num
 
