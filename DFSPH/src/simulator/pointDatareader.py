@@ -84,7 +84,11 @@ def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0]), requ
         for coord in (0,2): points[0:,coord] -= (min(points[0:,coord])+max(points[0:,coord]))/2
 
     points[:,] += offset
-    return points    
+    if request_IDs:
+        IDs = np.zeros(points.shape[0], int)
+        return points, IDs
+    else:
+        return points    
 
 
 
@@ -106,10 +110,7 @@ def main(file):
     print("z_range: ")
     print((min(z_coords),max(z_coords)))
 
-    print(IDs)
-
-    arr = np.array([0.1 if IDs == 0 else 0.3], float)
-    print(arr)
+    # print(IDs)
 
 if __name__ == '__main__':
-    main(r"src\pointDataMetaFiles\test.txt")
+    main(r"src\pointDataFiles\erlenmayer_smaller_ss.vtk")
