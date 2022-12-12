@@ -135,6 +135,8 @@ class Simulation:
         self.fluid.update_b_neighbors()
 
         self.fluid.update_density()
+        self.fluid.update_normals()
+
 
         self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
        
@@ -177,6 +179,7 @@ class Simulation:
         # Prepare Divergence Free Solver
         self.fluid.update_neighbors()
         self.fluid.update_density()
+        self.fluid.update_normals()
 
         # Print density
         # print("Density Average: ", self.compute_field_average(self.fluid.density))
@@ -203,7 +206,6 @@ class Simulation:
         self.viscosity_sucess = self.viscositySolver.solve(self.dt)
         # self.viscosity_sucess = 1
         # print("Velocity Average After Viscosity: ", np.average(self.fluid.V.to_numpy()))
-      
         self.current_time += self.dt
 
         self.dt = self.fluid.CFL_condition()
@@ -211,7 +213,6 @@ class Simulation:
         if self.debug:
             # pass
             self.log_state()
-
 
     def emit_particles(self):
         vel = ti.Vector([0., self.emission_velocity, 0.], ti.f32)
@@ -258,7 +259,7 @@ class Simulation:
                 z = self.particle_field[i,2]
                 self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset_1
                 self.fluid.V[i] = ti.Vector([0.,self.initial_fluid_velocity,0.],ti.f32)
-                self.fluid.T[i] = y*10
+                self.fluid.T[i] = 25
 
     def run(self):
         self.prolog()
@@ -367,6 +368,8 @@ class Simulation:
         np.save(self.result_dir + f"data/frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy()[:self.num_particles[None],])
         np.save(self.result_dir + f"data/frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy()[:self.num_particles[None],])
         np.save(self.result_dir + f"data/frame_temperature_{self.current_frame_id}.npy", self.fluid.T.to_numpy()[:self.num_particles[None],])
+        np.save(self.result_dir + f"data/frame_normal_norm_{self.current_frame_id}.npy", self.fluid.normals_norm.to_numpy()[:self.num_particles[None],])
+        np.save(self.result_dir + f"data/frame_normal_{self.current_frame_id}.npy", self.fluid.normals.to_numpy()[:self.num_particles[None],])
         if self.is_uniform_export:
             self.fluid.compute_uniform_field()
             np.save(self.result_dir + f"data/frame_uniform_{self.current_frame_id}.npy", self.fluid.uniform_field.to_numpy())
