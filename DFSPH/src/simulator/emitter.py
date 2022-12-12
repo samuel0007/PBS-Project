@@ -3,13 +3,14 @@ import taichi as ti
 import random
 
 class Emitter:
-    def __init__(self, x, y, z, radius, particles_per_second):
-        self.x = x
-        self.y = y
-        self.z = z
+    def __init__(self, pos, radius, particles_per_second, seed = 42):
+        self.x = pos[0]
+        self.y = pos[1]
+        self.z = pos[2]
         self.radius = radius
         self.pps = particles_per_second
         self. err = 0.
+        random.seed(seed)
 
     def get_particle(self):
         angle = random.uniform(0, 2 * np.pi)
