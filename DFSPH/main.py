@@ -4,7 +4,7 @@ from src.simulator.simulation import Simulation
 # from src.renderer.renderer import Renderer
 from src.renderer.pyvista_renderer import Renderer
 
-RESULT_DIR = "results/run_flask_4/" # directory has to exist, otherwise crash
+RESULT_DIR = "results/run_tube_1/" # directory has to exist, otherwise crash
 BOUNDS = 4. 
 REST_DENSITY = 300
 RADIUS = 0.025
@@ -33,7 +33,7 @@ B_MU_GROUND = 15000
 # Run Simulation
 ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=8)
 # simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,\
-#     pointData_file=r"src/pointDataFiles/erlenmayer_quickerstart.npy", boundary_pointData_file = r"src/pointDataMetaFiles/flask_on_plane.txt", is_uniform_export=False,\
+#     pointData_file=r"src\pointDataMetaFiles\empty.txt", boundary_pointData_file = r"src\pointDataMetaFiles\tube_on_plane.txt", is_uniform_export=False,\
 #     initial_fluid_velocity = INITIAL_FLUID_VELOCITY, emission_velocity = EMISSION_VELOCITY,\
 #     particles_per_second = PARTICLES_PER_SECOND)
 # simulation.run()
