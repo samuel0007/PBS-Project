@@ -26,8 +26,9 @@ class FluidModel:
         self.num_y_cells = int(np.ceil((self.y_max - self.y_min)/self.support_radius))
         self.num_z_cells = int(np.ceil((self.z_max - self.z_min)/self.support_radius))
 
-        self.uniform_pos = ti.Vector.field(3, ti.f32, (self.num_x_cells, self.num_y_cells, self.num_z_cells))
-        self.uniform_field = ti.field(ti.f32, (self.num_x_cells, self.num_y_cells, self.num_z_cells))
+        self.uniform_N = 4
+        self.uniform_pos = ti.Vector.field(3, ti.f32, (self.num_x_cells, self.num_y_cells, self.num_z_cells, self.uniform_N, self.uniform_N, self.uniform_N))
+        self.uniform_field = ti.field(ti.f32, (self.num_x_cells, self.num_y_cells, self.num_z_cells, self.uniform_N, self.uniform_N, self.uniform_N))
 
 
         #I couldn't find a way to use an array as a dtype. Now, there is a maximal number of particles that can occupy any cell.
@@ -320,15 +321,20 @@ class FluidModel:
         x_cell_size = (self.x_max - self.x_min) / self.num_x_cells
         y_cell_size = (self.y_max - self.y_min) / self.num_y_cells
         z_cell_size = (self.z_max - self.z_min) / self.num_z_cells
-        for x_cell, y_cell, z_cell in ti.ndrange(self.num_x_cells, self.num_y_cells, self.num_z_cells):
-            self.uniform_pos[x_cell, y_cell, z_cell] = ti.Vector([x_cell*x_cell_size + x_cell_size/2, y_cell*y_cell_size + y_cell_size/2, z_cell*z_cell_size + z_cell_size/2])
+        N = self.uniform_N + 1
+        for x_cell, y_cell, z_cell, i, j, k in ti.ndrange(self.num_x_cells, self.num_y_cells, self.num_z_cells, self.uniform_N, self.uniform_N, self.uniform_N):
+            self.uniform_pos[x_cell, y_cell, z_cell, i, j, k] = ti.Vector([x_cell*x_cell_size + x_cell_size*(i+1)/N, y_cell*y_cell_size + y_cell_size*(j+1)/N, z_cell*z_cell_size + z_cell_size*(k+1)/N])
 
     @ti.kernel
     def compute_uniform_field(self):
         # clear uniform field
         self.uniform_field.fill(0.)
-        for x_cell, y_cell, z_cell in ti.ndrange(self.num_x_cells, self.num_y_cells, self.num_z_cells):
-            pos = self.uniform_pos[x_cell, y_cell, z_cell]
-            for l in range(ti.length(self.grid_structure,[x_cell,y_cell,z_cell])):
-                j = self.grid[x_cell,y_cell,z_cell,l]
-                self.uniform_field[x_cell, y_cell, z_cell] += self.mass * self.kernel.W(pos - self.X[j])
+        for x_cell, y_cell, z_cell, i, j, k in ti.ndrange(self.num_x_cells, self.num_y_cells, self.num_z_cells, self.uniform_N, self.uniform_N, self.uniform_N):
+            pos = self.uniform_pos[x_cell, y_cell, z_cell, i, j, k]
+            # Check all neighboring cells
+            for x_n in range(ti.max(0,x_cell-1),ti.min(self.num_x_cells,x_cell+2)):
+                for y_n in range(ti.max(0,y_cell-1),ti.max(self.num_y_cells,y_cell+2)):
+                    for z_n in range(ti.max(0,z_cell-1),ti.max(self.num_z_cells,z_cell+2)):
+                        for l in range(ti.length(self.b_grid_structure,[x_n,y_n,z_n])):
+                                j = self.grid[x_n,y_n,z_n,l]
+                                self.uniform_field[x_cell, y_cell, z_cell, i, j, k] += self.mass * self.kernel.W(pos - self.X[j])

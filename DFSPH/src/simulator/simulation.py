@@ -18,7 +18,8 @@ class Simulation:
             result_dir="results/example/", pointData_file = "", 
             boundary_pointData_file = "", is_uniform_export = False,
             initial_fluid_velocity: ti.f32 = 0., emission_velocity: ti.f32 = 0.,
-            particles_per_second: ti.f32 = 0):
+            particles_per_second: ti.f32 = 0, t_room: ti.f32 = 25,
+            room_radiation_half_time: ti.f32 = 0.5):
         # This is a bit of a nuisance, but the value couldn't be modified otherwise
         # Now, num_particles can be accessed as self.num_particles[None]
         self.num_particles = ti.field(ti.i32, shape = ())
@@ -101,7 +102,10 @@ class Simulation:
         self.viscositySolver = ViscositySolver(self.num_particles[None], self.max_num_particles, self.fluid)
 
         self.gamma = gamma
-        self.temperatureSolver = TemperatureSolver(self.gamma, self.fluid)
+        self.t_room = t_room
+        self.room_radiation_half_time = room_radiation_half_time
+
+        self.temperatureSolver = TemperatureSolver(self.gamma, self.t_room, self.room_radiation_half_time, self.fluid)
 
         self.non_pressure_forces = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
 
@@ -252,14 +256,16 @@ class Simulation:
                         # add velocity in z direction
                         # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
         else:
-            offset_1 = ti.Vector([0.,0.,0.],ti.f32)
+            offset = ti.Vector([0.,0.,0.],ti.f32)
             for i in range(self.num_particles[None]):
                 x = self.particle_field[i,0]
                 y = self.particle_field[i,1]
                 z = self.particle_field[i,2]
-                self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset_1
+                self.fluid.X[i] = ti.Vector([x,y,z],ti.f32) + offset
                 self.fluid.V[i] = ti.Vector([0.,self.initial_fluid_velocity,0.],ti.f32)
                 self.fluid.T[i] = 25
+            for i in range(self.num_particles[None], self.max_num_particles):
+                self.fluid.T[i] = 50
 
     def run(self):
         self.prolog()
@@ -360,8 +366,8 @@ class Simulation:
         T_min = self.compute_field_min(self.fluid.T)
         laplacian_max = self.compute_field_max(self.temperatureSolver.laplacian)
 
-        print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles}", end="\r")
-        # print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[L_MAX]: {laplacian_max}", end="\r")
+        # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles}", end="\r")
+        print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[L_MAX]: {laplacian_max}", end="\r")
         # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[P_SOL]:{(self.pressure_solve):.1f},[P_I]:{self.pressure_iteration},[D_SOL]:{self.divergence_solve:1f},[D_I]:{self.divergence_iteration},[V]:{self.viscosity_sucess}", end="\r")
 
     def frame_export(self):
