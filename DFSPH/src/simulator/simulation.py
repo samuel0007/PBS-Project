@@ -360,7 +360,7 @@ class Simulation:
         T_min = self.compute_field_min(self.fluid.T)
         laplacian_max = self.compute_field_max(self.temperatureSolver.laplacian)
 
-        print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles}", end="\r")
+        print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles},[oob]:{self.num_particles[None]-num_active_particles}", end="\r")
         # print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[L_MAX]: {laplacian_max}", end="\r")
         # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[P_SOL]:{(self.pressure_solve):.1f},[P_I]:{self.pressure_iteration},[D_SOL]:{self.divergence_solve:1f},[D_I]:{self.divergence_iteration},[V]:{self.viscosity_sucess}", end="\r")
 
