@@ -6,7 +6,7 @@ from matplotlib import cm
 import os
 
 class Renderer:
-    def __init__(self, result_dir: str, radius: float, start_frame=0, max_frame=-1, render_boundary=False, render_density=False, render_temperature=False, mass=-1, SHOW=True, framestep=1, framerate=24, render_uniform=False):
+    def __init__(self, result_dir: str, radius: float, start_frame=0, max_frame=-1, render_boundary=False, render_density=False, render_temperature=False, mass=-1, SHOW=True, framestep=1, framerate=24, render_uniform=False, resolution = [1280,720]):
 
         self.result_dir = result_dir
         os.makedirs(self.result_dir + "frames", exist_ok=True)
@@ -21,6 +21,7 @@ class Renderer:
         self.framestep = framestep
         self.start_frame = start_frame
         self.max_frame = max_frame
+        self.resolution = resolution
 
          # All the files from results folder
         if max_frame == -1:
@@ -87,7 +88,7 @@ class Renderer:
 
     def render_particles(self):   
         for frame_id in range(self.start_frame, self.max_frame, self.framestep):
-            p = pv.Plotter(off_screen=True)
+            p = pv.Plotter(off_screen=True, window_size=self.resolution)
             print(frame_id, end="\r")
             particles = np.load(self.files[frame_id])
             if self.render_density:

@@ -19,7 +19,7 @@ class Simulation:
             boundary_pointData_file = "", is_uniform_export = False,
             initial_fluid_velocity: ti.f32 = 0., emission_velocity: ti.f32 = 0.,
             particles_per_second: ti.f32 = 0, t_room: ti.f32 = 25,
-            room_radiation_half_time: ti.f32 = 0.5):
+            room_radiation_half_time: ti.f32 = 0.5, emitter_pos = [2., 0.125, 2.], emitter_radius = 0.5):
         # This is a bit of a nuisance, but the value couldn't be modified otherwise
         # Now, num_particles can be accessed as self.num_particles[None]
         self.num_particles = ti.field(ti.i32, shape = ())
@@ -27,7 +27,7 @@ class Simulation:
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
         self.boundary_pointData_file = boundary_pointData_file
-        self.emitter = Emitter(2., 0.2, 2., 0.1, particles_per_second)
+        self.emitter = Emitter(emitter_pos, emitter_radius, particles_per_second)
 
         self.initial_fluid_velocity = initial_fluid_velocity
         self.emission_velocity = emission_velocity
@@ -157,7 +157,7 @@ class Simulation:
 
         if self.is_uniform_export:
             self.fluid.generate_uniform_pos()
-            np.save(self.result_dir + "data/uniform_pos.npy", self.fluid.uniform_pos.to_numpy())
+            np.save(self.result_dir + "data/uniform_pos.npy", self.fluid.uniform_pos.to_numpy()[:self.num_particles[None],])
 
     def step(self):
         # Explicitly Apply non pressure forces
@@ -367,22 +367,24 @@ class Simulation:
         laplacian_max = self.compute_field_max(self.temperatureSolver.laplacian)
 
         # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles}", end="\r")
-        print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[L_MAX]: {laplacian_max}", end="\r")
+        # print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[L_MAX]: {laplacian_max}", end="\r")
+        print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles},[oob]:{self.num_particles[None]-num_active_particles}", end="\r")
+        # print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[L_MAX]: {laplacian_max}", end="\r")
         # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[P_SOL]:{(self.pressure_solve):.1f},[P_I]:{self.pressure_iteration},[D_SOL]:{self.divergence_solve:1f},[D_I]:{self.divergence_iteration},[V]:{self.viscosity_sucess}", end="\r")
 
     def frame_export(self):
-        np.save(self.result_dir + f"data/frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy())
-        np.save(self.result_dir + f"data/frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy())
-        np.save(self.result_dir + f"data/frame_temperature_{self.current_frame_id}.npy", self.fluid.T.to_numpy())
-        np.save(self.result_dir + f"data/frame_normal_norm_{self.current_frame_id}.npy", self.fluid.normals_norm.to_numpy())
-        np.save(self.result_dir + f"data/frame_normal_{self.current_frame_id}.npy", self.fluid.normals.to_numpy())
+        np.save(self.result_dir + f"data/frame_{self.current_frame_id}.npy", self.fluid.X.to_numpy()[:self.num_particles[None],])
+        np.save(self.result_dir + f"data/frame_density_{self.current_frame_id}.npy", self.fluid.density.to_numpy()[:self.num_particles[None],])
+        np.save(self.result_dir + f"data/frame_temperature_{self.current_frame_id}.npy", self.fluid.T.to_numpy()[:self.num_particles[None],])
+        np.save(self.result_dir + f"data/frame_normal_norm_{self.current_frame_id}.npy", self.fluid.normals_norm.to_numpy()[:self.num_particles[None],])
+        np.save(self.result_dir + f"data/frame_normal_{self.current_frame_id}.npy", self.fluid.normals.to_numpy()[:self.num_particles[None],])
         if self.is_uniform_export:
             self.fluid.compute_uniform_field()
             np.save(self.result_dir + f"data/frame_uniform_{self.current_frame_id}.npy", self.fluid.uniform_field.to_numpy())
 
 
     def save(self):
-        np.save(self.result_dir + "data/results.npy", self.fluid.X.to_numpy())
+        np.save(self.result_dir + "data/results.npy", self.fluid.X.to_numpy()[:self.num_particles[None],])
 
     
 
