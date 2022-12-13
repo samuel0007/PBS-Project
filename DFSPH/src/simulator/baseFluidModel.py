@@ -67,6 +67,9 @@ class FluidModel:
         self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
         self.T = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         self.mu = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.normals = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
+        self.normals_normalized = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
+        self.normals_norm = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         self.active = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
         self.active.fill(1) 
         # At the beginning, all particles with index < num_particles are active
@@ -272,6 +275,22 @@ class FluidModel:
                 density += self.b_M[j] * self.kernel.W(local_pos - self.b_X[j])
                
             self.density[i] = density
+    
+    @ti.kernel
+    def update_normals(self):
+        # Color field: each particle has attribute c = 1, compute field
+        for i in range(self.num_particles[None]):
+            if not self.active[i]: continue
+            normal = ti.Vector([0.,0.,0.])
+            local_pos = self.X[i]
+
+            for l in range(self.get_num_neighbors_i(i)):
+                j = self.neighbor_list[i,l]
+                normal += (self.mass / self.density[j]) * self.kernel.W_grad(local_pos - self.X[j])
+
+            self.normals[i] = normal
+            self.normals_norm[i] = normal.norm()
+            self.normals_normalized[i] = normal / self.normals_norm[i]                
 
     @ti.kernel
     def get_num_neighbors_avg(self) -> ti.f32:
