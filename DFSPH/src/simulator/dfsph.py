@@ -31,7 +31,7 @@ class DensityAndPressureSolver:
             self.densitySolver.increase_particles()
 
     @ti.kernel    
-    def update_alpha_i(self, f_X: ti.template(), f_M: ti.f32, f_density: ti.template(), f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template()):
+    def update_alpha_i(self):
         for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue 
 
@@ -86,7 +86,7 @@ class DivergenceSolver:
 
     def solve(self, fluid: FluidModel, dt):
         # print(fluid.V)
-        self.compute_density_adv(fluid.mass, fluid.X, fluid.V, fluid.f_neighbors, fluid.b_X, fluid.b_M, fluid.b_neighbors, fluid.number_of_neighbors)
+        self.compute_density_adv(fluid.mass, fluid.X, fluid.V, fluid.b_X, fluid.b_M, fluid.number_of_neighbors)
 
         density_adv_avg = self.compute_field_average(self.density_adv)
         # print("Initial density_adv_avg: ", density_adv_avg)
@@ -94,15 +94,15 @@ class DivergenceSolver:
         eta = self.tol * fluid.density0 
 
         while (density_adv_avg*dt > eta or iteration < self.min_iter) and not iteration > self.max_iter:
-            self.compute_density_adv(fluid.mass, fluid.X, fluid.V, fluid.f_neighbors, fluid.b_X, fluid.b_M, fluid.b_neighbors, fluid.number_of_neighbors)
+            self.compute_density_adv(fluid.mass, fluid.X, fluid.V, fluid.b_X, fluid.b_M, fluid.number_of_neighbors)
             self.compute_kappa_v_i(fluid.density, dt)
-            self.update_velocity(fluid.mass, fluid.X, fluid.V, fluid.f_neighbors, fluid.b_M, fluid.b_X, fluid.b_neighbors, dt)
+            self.update_velocity(fluid.mass, fluid.X, fluid.V, fluid.b_M, fluid.b_X, dt)
             density_adv_avg = self.compute_field_average(self.density_adv)
             iteration += 1
         return density_adv_avg*dt - eta, iteration
 
     @ti.kernel
-    def update_velocity(self, M: ti.f32, X: ti.template(), V: ti.template(), f_neighbors: ti.template(), b_M: ti.template(), b_X: ti.template(), b_neighbors: ti.template(), dt: ti.f32):
+    def update_velocity(self, M: ti.f32, X: ti.template(), V: ti.template(), b_M: ti.template(), b_X: ti.template(), dt: ti.f32):
         for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
@@ -153,7 +153,7 @@ class DivergenceSolver:
                 self.factor_i[i] = 0.
         
     @ti.kernel
-    def compute_density_adv(self, M: ti.f32, X: ti.template(), V: ti.template(), f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template(), number_of_neighbors: ti.template()):
+    def compute_density_adv(self, M: ti.f32, X: ti.template(), V: ti.template(), b_X: ti.template(), b_M: ti.template(), number_of_neighbors: ti.template()):
         for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 
@@ -239,11 +239,11 @@ class DensitySolver:
             self.warmed = False
 
         while (density_avg - fluid.density0 > eta or iteration < self.min_iter) and not iteration > self.max_iter:
-            self.predict_density(fluid.X, fluid.V, fluid.density, fluid.mass, fluid.f_neighbors, fluid.b_X, fluid.b_M, fluid.b_neighbors, fluid.density0, dt)
+            self.predict_density(fluid.X, fluid.V, fluid.mass, fluid.b_X, fluid.b_M, fluid.density0, dt)
             density_avg = self.compute_density_avg(self.density_predict)
             # print("density_avg: ", density_avg)
             self.compute_kappa_i(fluid.density, fluid.density0, dt)
-            self.update_velocity(fluid.X, fluid.V, fluid.mass, fluid.f_neighbors, fluid.b_X, fluid.b_M, fluid.b_neighbors, dt)
+            self.update_velocity(fluid.X, fluid.V, fluid.mass, fluid.b_X, fluid.b_M, dt)
             iteration += 1
         return abs(density_avg - fluid.density0), iteration
 
@@ -265,7 +265,7 @@ class DensitySolver:
             self.factor_i[i] = self.warm_factor_i[i]
 
     @ti.kernel
-    def predict_density(self, X: ti.template(), V: ti.template(), f_density: ti.template(), f_M: ti.f32, f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template(), density_0: ti.f32, dt: ti.f32):
+    def predict_density(self, X: ti.template(), V: ti.template(), f_M: ti.template(), b_X: ti.template(), b_M: ti.template(), density_0: ti.f32, dt: ti.f32):
         for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
             value = 0.
@@ -310,7 +310,7 @@ class DensitySolver:
                 self.factor_i[i] = 0.
 
     @ti.kernel
-    def update_velocity(self, f_X:ti.template(), f_V: ti.template(), f_mass: ti.f32, f_neighbors: ti.template(), b_X: ti.template(), b_M: ti.template(), b_neighbors: ti.template(), dt: ti.f32):
+    def update_velocity(self, f_X:ti.template(), f_V: ti.template(), f_mass: ti.f32, b_X: ti.template(), b_M: ti.template(), dt: ti.f32):
         for i in range(self.num_particles[None]):
             if not self.fluid.active[i]: continue
 

@@ -45,7 +45,7 @@ ROOM_RADIATION_HALF_TIME = 0.01 # If too low, may explode. Min tested working va
 # Run Simulation
 ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=8)
 simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,
-    pointData_file=r"src/pointDataFiles/erlenmayer_quickerstart.npy", boundary_pointData_file=r"src/pointDataMetaFiles/flask_on_plane.txt", is_uniform_export=True,
+    pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=True,
     initial_fluid_velocity=INITIAL_FLUID_VELOCITY, emission_velocity=EMISSION_VELOCITY,
     particles_per_second=PARTICLES_PER_SECOND, t_room=T_ROOM, room_radiation_half_time=ROOM_RADIATION_HALF_TIME)
 simulation.run()
