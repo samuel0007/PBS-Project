@@ -16,7 +16,7 @@ class Simulation:
             bounds: float, mass: ti.f32, rest_density: ti.f32, support_radius: ti.f32,
             mu: ti.f32, b_mu, gamma: ti.f32, is_frame_export=False, debug=False,
             result_dir="results/example/", pointData_file = "", 
-            boundary_pointData_file = "", is_uniform_export = False,
+            boundary_pointData_file = "", is_uniform_export = False, gravity: ti.f32 = -9.81,
             initial_fluid_velocity: ti.f32 = 0., emission_velocity: ti.f32 = 0.,
             particles_per_second: ti.f32 = 0, t_room: ti.f32 = 25,
             room_radiation_half_time: ti.f32 = 0.5, emitter_pos = [2., 0.125, 2.], emitter_radius = 0.5):
@@ -29,6 +29,7 @@ class Simulation:
         self.boundary_pointData_file = boundary_pointData_file
         self.emitter = Emitter(emitter_pos, emitter_radius, particles_per_second)
 
+        self.gravity = gravity
         self.initial_fluid_velocity = initial_fluid_velocity
         self.emission_velocity = emission_velocity
 
@@ -232,7 +233,7 @@ class Simulation:
     def init_non_pressure_forces(self):
         # this should probebly be self.max_num_particles 
         for i in range(self.max_num_particles):
-            self.non_pressure_forces[i] = ti.Vector([0., -9.81, 0.])
+            self.non_pressure_forces[i] = ti.Vector([0., self.gravity, 0.])
 
     @ti.kernel
     def apply_non_pressure_forces(self):
