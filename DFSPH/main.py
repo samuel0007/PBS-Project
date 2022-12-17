@@ -6,6 +6,7 @@ from src.renderer.pyvista_renderer import Renderer
 
 RESULT_DIR = "results/run_flask_5/" # directory has to exist, otherwise crash
 BOUNDS = 4. 
+UNIFORM_EXPORT = False
 REST_DENSITY = 300
 RADIUS = 0.025
 SUPPORT_RADIUS = 4*RADIUS
@@ -40,24 +41,30 @@ MU = 1500
 B_MU_FLASK = 0
 B_MU_GROUND = 25000
 
-T_ROOM = 15
-ROOM_RADIATION_HALF_TIME = 0.01 # If too low, may explode. Min tested working value: 0.01
+T_ROOM = 25
+ROOM_RADIATION_HALF_TIME = 0.1 # If too low, may explode. Min tested working value: 0.01
+EMISSION_T = 500
+INIT_T = 125
+# t_to_mu: Temperature -> Viscosity
+@ti.func
+def T_TO_MU(t: ti.f32) -> ti.f32:
+    return t*50
 
 # Run Simulation
 # ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=32)
 # simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,
-#     pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=True, gravity=GRAVITY,
+#     pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=UNIFORM_EXPORT, gravity=GRAVITY,
 #     initial_fluid_velocity=INITIAL_FLUID_VELOCITY, emission_velocity=EMISSION_VELOCITY,
 #     particles_per_second=PARTICLES_PER_SECOND, t_room=T_ROOM, room_radiation_half_time=ROOM_RADIATION_HALF_TIME,
-#     emitter_pos=EMITTER_POS, emitter_radius=EMITTER_RADIUS)
+#     emitter_pos=EMITTER_POS, emitter_radius=EMITTER_RADIUS, t_to_mu=T_TO_MU, emission_t=EMISSION_T, init_t=INIT_T)
 # simulation.run()
 
 
-STARTFRAME = 200
-FRAMESTEP = 10
+STARTFRAME = 0
+FRAMESTEP = 1
 RESOLUTION = [1280,720]
 
 # Render Simulation
-renderer = Renderer(result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=True, render_density=False, render_temperature=True, mass=MASS, start_frame=STARTFRAME, framestep=FRAMESTEP, render_uniform=True, resolution=RESOLUTION)
+renderer = Renderer(result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=True, render_density=False, render_temperature=True, mass=MASS, start_frame=STARTFRAME, framestep=FRAMESTEP, render_uniform=UNIFORM_EXPORT, resolution=RESOLUTION)
 # renderer = Renderer(bounds=BOUNDS, result_dir=RESULT_DIR+r"\data", radius=RADIUS*0.99, SHOW=True, render_boundary=False, render_density=False, mass=MASS, start_frame=80)
 renderer.render()

@@ -6,7 +6,7 @@ from .kernel import CubicSpline, Poly6
 @ti.data_oriented
 class FluidModel:
     def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, max_dt: ti.f32, density0: ti.f32, support_radius: ti.f32, mass: ti.f32, x_min: ti.f32 = -1.5, x_max: ti.f32 = 1.5, \
-                          y_min: ti.f32 = -1.5, y_max: ti.f32 = 1.5, z_min: ti.f32 = -1.5, z_max: ti.f32 = 1.5):
+                          y_min: ti.f32 = -1.5, y_max: ti.f32 = 1.5, z_min: ti.f32 = -1.5, z_max: ti.f32 = 1.5, t_to_mu=lambda t:t):
         self.num_particles = ti.field(ti.i32, shape = ())
         self.num_particles[None] = num_particles
         self.max_num_particles = max_num_particles
@@ -68,6 +68,7 @@ class FluidModel:
         self.V = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
         self.T = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         self.mu = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
+        self.t_to_mu = t_to_mu
         self.normals = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
         self.normals_normalized = ti.Vector.field(3, dtype=ti.f32, shape=(self.max_num_particles))
         self.normals_norm = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
@@ -97,6 +98,11 @@ class FluidModel:
             self.mu[i] = mu
         for i in range(self.b_num_particles):
             self.b_mu[i] = b_mu[i]
+    
+    @ti.kernel
+    def update_viscosity_from_temperature(self):
+        for i in range(self.num_particles[None]):
+            self.mu[i] = self.t_to_mu(self.T[i])
         
     @ti.kernel
     def CFL_condition(self) -> ti.f32:

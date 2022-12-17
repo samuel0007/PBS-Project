@@ -47,7 +47,7 @@ class Renderer:
             self.temperature_files = [f"{result_dir}data/frame_temperature_{i}.npy" for i in range(self.max_frame)]
             self.cmap = cm.jet
             init_data = np.load(self.temperature_files[0])
-            self.clim = [np.min(init_data), np.max(init_data)]
+            self.clim = [15, 150]
 
         if render_boundary:
             self.b_particles_data = np.load(result_dir+'data/boundary.npy')

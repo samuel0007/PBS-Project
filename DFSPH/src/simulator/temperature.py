@@ -47,6 +47,8 @@ class TemperatureSolver:
             self.fluid.T[i] += dt * (self.gamma * self.laplacian[i] - self.room_contribution[i])
             if self.fluid.T[i] < 0:
                 self.fluid.T[i] = 0
+    
+   
 
     def update_temperature(self, dt: ti.f32):
         self.compute_laplacian()
