@@ -335,6 +335,7 @@ class FluidModel:
             for x_n in range(ti.max(0,x_cell-1),ti.min(self.num_x_cells,x_cell+2)):
                 for y_n in range(ti.max(0,y_cell-1),ti.max(self.num_y_cells,y_cell+2)):
                     for z_n in range(ti.max(0,z_cell-1),ti.max(self.num_z_cells,z_cell+2)):
-                        for l in range(ti.length(self.b_grid_structure,[x_n,y_n,z_n])):
-                                j = self.grid[x_n,y_n,z_n,l]
-                                self.uniform_field[x_cell, y_cell, z_cell, i, j, k] += self.mass * self.kernel.W(pos - self.X[j])
+                        for l in range(ti.length(self.grid_structure,[x_n,y_n,z_n])):
+                                p_j = self.grid[x_n,y_n,z_n,l]
+                                x_ij = pos - self.X[p_j]
+                                self.uniform_field[x_cell, y_cell, z_cell, i, j, k] += self.mass * self.kernel.W(x_ij)

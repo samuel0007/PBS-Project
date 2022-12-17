@@ -4,6 +4,7 @@ import numpy as np
 import pyvista as pv
 from matplotlib import cm
 import os
+from pyvista import examples
 
 class Renderer:
     def __init__(self, result_dir: str, radius: float, start_frame=0, max_frame=-1, render_boundary=False, render_density=False, render_temperature=False, mass=-1, SHOW=True, framestep=1, framerate=24, render_uniform=False, resolution = [1280,720]):
@@ -58,33 +59,51 @@ class Renderer:
             self.render_particles()
 
     def render_uniform_grid(self):
+        cubemap = examples.download_sky_box_cube_map()
+       
+
         for frame_id in range(self.start_frame, self.max_frame, self.framestep):
             p = pv.Plotter(off_screen=True)
+            p.add_actor(cubemap.to_skybox())
+            p.set_environment_texture(cubemap)
             print(frame_id, end="\r")
 
             field_data = np.load(self.files[frame_id])
+            grid_size = field_data.shape[0]
+            new_field_data = np.empty([grid_size*field_data.shape[-1]]*3)
+            it = np.nditer(field_data, flags=['multi_index'])
+            for x in it:
+                # x, it.index
+                index = it.multi_index
+                new_field_data[
+                    index[0]*4+ index[3],
+                    index[1]*4+ index[4],
+                    index[2]*4+ index[5]
+                ] = x
+                
             # grid = pv.UniformGrid()
             # grid.dimensions = field_data.shape
             # grid.spacing = (1, 2, 1)
             # grid.origin = (0, 0, 0)
             # print(field_data)
             # mesh = grid.contour([250], field_data, method="marching_cubes")
-            volume_data = pv.wrap(field_data)
+            volume_data = pv.wrap(new_field_data)
             volume_data.origin = (0, 0, 0)
             volume_data.spacing = (1, 2, 1)
-            surface = volume_data.contour([80, 100, 150, 200, 250, 300])
+            surface = volume_data.contour([150])
             if len(surface.points) > 0:
-                p.add_mesh(surface, color="blue", opacity=0.8)
+                p.add_mesh(surface, color="blue", pbr=True, metallic=0.8, roughness=0.1, diffuse=1)
             # p.add_volume(volume_data)
 
             # if self.render_boundary:
                 # p.add_mesh(self.b_particles_data, point_size=3, render_points_as_spheres=True, opacity=0.01)
-            cpos = [(50.3838307134328, 130.20751731316425, 32.18513266960956),
-                    (0, 0, 0),
-                    (0.018, 0.99, -0.06)]
-            # cpos = [(170.63279823814065, 205.13279823814065, 160.63279823814065), (0.0, 0.0, 0.0), (0.018, 0.99, -0.06)]
+            # cpos = [(50.3838307134328, 130.20751731316425, 32.18513266960956),
+            #         (0, 0, 0),
+            #         (0.018, 0.99, -0.06)]
+            cpos = [(170.63279823814065, 100.13279823814065, 160.63279823814065), (0.0, 0.0, 0.0), (0.018, 0.99, -0.06)]
+            # p.show(screenshot=self.result_dir+f"frames/{frame_id:06d}.png", cpos=cpos)
             p.show(screenshot=self.result_dir+f"frames/{frame_id:06d}.png", cpos=cpos)
-            # p.show(screenshot=self.result_dir+f"frames/{frame_id:06d}.png")
+            # print(p.)
 
     def render_particles(self):   
         for frame_id in range(self.start_frame, self.max_frame, self.framestep):
