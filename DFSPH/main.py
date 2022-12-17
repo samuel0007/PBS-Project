@@ -4,7 +4,7 @@ from src.simulator.simulation import Simulation
 # from src.renderer.renderer import Renderer
 from src.renderer.pyvista_renderer import Renderer
 
-RESULT_DIR = "results/run_small_tube_1/" # directory has to exist, otherwise crash
+RESULT_DIR = "results/run_flask_5/" # directory has to exist, otherwise crash
 BOUNDS = 4. 
 REST_DENSITY = 300
 RADIUS = 0.025
@@ -22,20 +22,20 @@ GAMMA = 1e-1 # If too high, might expode do to euler explicit integration. Max t
 # INITIAL_FLUID = r"src\pointDataMetaFiles\empty.txt"
 # BOUNDARY = r"src\pointDataMetaFiles\tube_on_plane.txt"
 
-INITIAL_FLUID = r"src\pointDataMetaFiles\empty.txt"
-BOUNDARY = r"src\pointDataMetaFiles\small_tube_on_plane.txt"
+# INITIAL_FLUID = r"src\pointDataMetaFiles\empty.txt"
+# BOUNDARY = r"src\pointDataMetaFiles\small_tube_on_plane.txt"
 
-# INITIAL_FLUID = r"src\pointDataFiles\erlenmayer_quickerstart.txt"
-# BOUNDARY = r"src\pointDataMetaFiles\flask_on_plane.txt"
+INITIAL_FLUID = r"src\pointDataFiles\erlenmayer_quickerstart.npy"
+BOUNDARY = r"src\pointDataMetaFiles\flask_on_plane.txt"
 
 # Those are upwards velocities
 INITIAL_FLUID_VELOCITY = 10.
 EMISSION_VELOCITY = 10.
-PARTICLES_PER_SECOND = 4500
+PARTICLES_PER_SECOND = 3000
 EMITTER_POS = [2., 0.2, 2.]
 EMITTER_RADIUS = 0.07
 
-MU = 2500
+MU = 1500
 B_MU_FLASK = 0
 B_MU_GROUND = 25000
 
