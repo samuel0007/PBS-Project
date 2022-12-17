@@ -48,7 +48,8 @@ ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=6)
 simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,
     pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=True, gravity=GRAVITY,
     initial_fluid_velocity=INITIAL_FLUID_VELOCITY, emission_velocity=EMISSION_VELOCITY,
-    particles_per_second=PARTICLES_PER_SECOND, t_room=T_ROOM, room_radiation_half_time=ROOM_RADIATION_HALF_TIME)
+    particles_per_second=PARTICLES_PER_SECOND, t_room=T_ROOM, room_radiation_half_time=ROOM_RADIATION_HALF_TIME,
+    emitter_pos=EMITTER_POS, emitter_radius=EMITTER_RADIUS)
 simulation.run()
 ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=6)
 
@@ -58,6 +59,6 @@ FRAMESTEP = 1
 RESOLUTION = [1280,720]
 
 # Render Simulation
-renderer = Renderer(result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=True, render_density=False, render_temperature=True, mass=MASS, start_frame=STARTFRAME, framestep=FRAMESTEP, render_uniform=False, resolution =  RESOLUTION)
+renderer = Renderer(result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=True, render_density=False, render_temperature=True, mass=MASS, start_frame=STARTFRAME, framestep=FRAMESTEP, render_uniform=False, resolution=RESOLUTION)
 # renderer = Renderer(bounds=BOUNDS, result_dir=RESULT_DIR+r"\data", radius=RADIUS*0.99, SHOW=True, render_boundary=False, render_density=False, mass=MASS, start_frame=80)
 renderer.render()
