@@ -60,7 +60,6 @@ class Renderer:
 
     def render_uniform_grid(self):
         cubemap = examples.download_sky_box_cube_map()
-       
 
         for frame_id in range(self.start_frame, self.max_frame, self.framestep):
             p = pv.Plotter(off_screen=True)
@@ -89,21 +88,26 @@ class Renderer:
             # mesh = grid.contour([250], field_data, method="marching_cubes")
             volume_data = pv.wrap(new_field_data)
             volume_data.origin = (0, 0, 0)
-            volume_data.spacing = (1, 2, 1)
+            volume_data.spacing = (1, 1, 1)
             surface = volume_data.contour([150])
             if len(surface.points) > 0:
-                p.add_mesh(surface, color="blue", pbr=True, metallic=0.8, roughness=0.1, diffuse=1)
-            # p.add_volume(volume_data)
+                p.add_mesh(surface, color="blue", pbr=True, metallic=0.01, roughness=0.1, diffuse=1)
+            # p.add_volume(volume_data, cmap="bone")
+            if self.render_boundary:
+                pass
+                # mesh = pv.wrap(self.b_particles_data)
+                # mesh.origin = (0, 0, 0)
+                # p.add_mesh(mesh, point_size=3, render_points_as_spheres=True, opacity=0.05)
+
 
             # if self.render_boundary:
                 # p.add_mesh(self.b_particles_data, point_size=3, render_points_as_spheres=True, opacity=0.01)
             # cpos = [(50.3838307134328, 130.20751731316425, 32.18513266960956),
             #         (0, 0, 0),
             #         (0.018, 0.99, -0.06)]
-            cpos = [(170.63279823814065, 100.13279823814065, 160.63279823814065), (0.0, 0.0, 0.0), (0.018, 0.99, -0.06)]
-            # p.show(screenshot=self.result_dir+f"frames/{frame_id:06d}.png", cpos=cpos)
+            cpos = [(200, 100, 200), (0.0, 0.0, 0.0), (0.018, 0.99, -0.06)]
             p.show(screenshot=self.result_dir+f"frames/{frame_id:06d}.png", cpos=cpos)
-            # print(p.)
+            # p.show(screenshot=self.result_dir+f"frames/{frame_id:06d}.png")
 
     def render_particles(self):   
         for frame_id in range(self.start_frame, self.max_frame, self.framestep):

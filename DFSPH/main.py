@@ -44,16 +44,16 @@ T_ROOM = 15
 ROOM_RADIATION_HALF_TIME = 0.01 # If too low, may explode. Min tested working value: 0.01
 
 # Run Simulation
-ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=32)
-simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,
-    pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=True, gravity=GRAVITY,
-    initial_fluid_velocity=INITIAL_FLUID_VELOCITY, emission_velocity=EMISSION_VELOCITY,
-    particles_per_second=PARTICLES_PER_SECOND, t_room=T_ROOM, room_radiation_half_time=ROOM_RADIATION_HALF_TIME,
-    emitter_pos=EMITTER_POS, emitter_radius=EMITTER_RADIUS)
-simulation.run()
+# ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=32)
+# simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,
+#     pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=True, gravity=GRAVITY,
+#     initial_fluid_velocity=INITIAL_FLUID_VELOCITY, emission_velocity=EMISSION_VELOCITY,
+#     particles_per_second=PARTICLES_PER_SECOND, t_room=T_ROOM, room_radiation_half_time=ROOM_RADIATION_HALF_TIME,
+#     emitter_pos=EMITTER_POS, emitter_radius=EMITTER_RADIUS)
+# simulation.run()
 
 
-STARTFRAME = 0
+STARTFRAME = 200
 FRAMESTEP = 10
 RESOLUTION = [1280,720]
 
