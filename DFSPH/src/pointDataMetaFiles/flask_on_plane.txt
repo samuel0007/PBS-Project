@@ -1,4 +1,4 @@
-erlenmayer_smaller_ss.vtk
+erlenmayer_small_ss.vtk
 3
 2. 0.1 2.
 

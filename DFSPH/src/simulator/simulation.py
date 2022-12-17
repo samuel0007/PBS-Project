@@ -142,7 +142,7 @@ class Simulation:
         self.fluid.update_normals()
 
 
-        self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
+        self.densityAndPressureSolver.update_alpha_i()
        
         # Print initial density
         print("Initial Density Average: ", self.compute_field_average(self.fluid.density))
@@ -197,7 +197,7 @@ class Simulation:
 
         # self.boundary.compute_M(self.fluid.density0)
 
-        self.densityAndPressureSolver.update_alpha_i(self.fluid.X, self.fluid.mass, self.fluid.density, self.fluid.f_neighbors, self.fluid.b_X, self.fluid.b_M, self.fluid.b_neighbors)
+        self.densityAndPressureSolver.update_alpha_i()
 
         # Divergence Free Solver
         self.divergence_solve, self.divergence_iteration = self.densityAndPressureSolver.divergenceSolver.solve(self.fluid, self.dt)

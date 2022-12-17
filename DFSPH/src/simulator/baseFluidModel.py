@@ -78,7 +78,7 @@ class FluidModel:
             self.active[i] = 0
         self.density = ti.field(dtype=ti.f32, shape=(self.max_num_particles))
         # should maybe be max_neighbors
-        self.f_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles, self.max_num_particles))
+        # self.f_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles, self.max_num_particles))
         self.f_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
         self.b_number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
         self.number_of_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles))
@@ -89,7 +89,7 @@ class FluidModel:
         self.b_X = b_X
         self.b_M = b_M
         self.b_mu = ti.field(dtype=ti.f32, shape=(self.b_num_particles))
-        self.b_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles, self.b_num_particles))
+        # self.b_neighbors = ti.field(dtype=ti.i32, shape=(self.max_num_particles, self.b_num_particles))
     
     @ti.kernel
     def set_initial_viscosity(self, mu: ti.f32, b_mu: ti.template()):
@@ -132,29 +132,29 @@ class FluidModel:
             self.num_particles[None] = self.num_particles[None] + 1
 
     # Dumb O(n^2) neighbor search, replace with grid based later
-    @ti.kernel
-    def update_neighbors_kernel(self):
-        for i in range(self.num_particles):
-            local_pos = self.X[i]
-            f_count = 0
-            for j in range(self.num_particles[None]):
-                if (local_pos - self.X[j]).norm() < self.support_radius:
-                    self.f_neighbors[i, j] = 1
-                    f_count += 1
-                else:
-                    self.f_neighbors[i, j] = 0
-            self.f_number_of_neighbors[i] = f_count
+    # @ti.kernel
+    # def update_neighbors_kernel(self):
+    #     for i in range(self.num_particles):
+    #         local_pos = self.X[i]
+    #         f_count = 0
+    #         for j in range(self.num_particles[None]):
+    #             if (local_pos - self.X[j]).norm() < self.support_radius:
+    #                 self.f_neighbors[i, j] = 1
+    #                 f_count += 1
+    #             else:
+    #                 self.f_neighbors[i, j] = 0
+    #         self.f_number_of_neighbors[i] = f_count
 
-            b_count = 0
-            for j in range(self.b_num_particles):
-                if (local_pos - self.b_X[j]).norm() < self.support_radius:
-                    self.b_neighbors[i, j] = 1
-                    b_count += 1
-                else:
-                    self.b_neighbors[i, j] = 0
-            self.b_number_of_neighbors[i] = b_count
+    #         b_count = 0
+    #         for j in range(self.b_num_particles):
+    #             if (local_pos - self.b_X[j]).norm() < self.support_radius:
+    #                 self.b_neighbors[i, j] = 1
+    #                 b_count += 1
+    #             else:
+    #                 self.b_neighbors[i, j] = 0
+    #         self.b_number_of_neighbors[i] = b_count
 
-            self.number_of_neighbors[i] = f_count + b_count
+    #         self.number_of_neighbors[i] = f_count + b_count
             
     @ti.func
     def get_cell(self, pos: ti.types.vector(3, ti.f32)) -> Tuple[bool, Tuple[int, int, int]]:

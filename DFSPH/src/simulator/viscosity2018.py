@@ -35,7 +35,7 @@ class ViscositySolver:
         # M_triplets = ti.Vector.field(3, dtype=ti.f32, shape=(m_matrix_entries))
 
         # self.fill_A(self.fluid.mass, self.fluid.density, self.fluid.X, self.fluid.f_neighbors, dt, A_builder, A_triplets, M_triplets)
-        self.fill_A(self.fluid.mass, self.fluid.density, self.fluid.X, self.fluid.f_neighbors, dt, A_builder)
+        self.fill_A(self.fluid.mass, self.fluid.density, self.fluid.X, dt, A_builder)
         A = A_builder.build()
 
         # A_triplets = A_triplets.to_numpy()
@@ -128,7 +128,7 @@ class ViscositySolver:
 
     # def fill_A(self, f_M: ti.f32, density: ti.template(), X: ti.template(), f_neighbors: ti.template(), dt: ti.f32, A_builder: ti.types.sparse_matrix_builder(), A_triplets: ti.template(), M_triplets: ti.template()):
     @ti.kernel
-    def fill_A(self, f_M: ti.f32, density: ti.template(), X: ti.template(), f_neighbors: ti.template(), dt: ti.f32, A_builder: ti.types.sparse_matrix_builder()):
+    def fill_A(self, f_M: ti.f32, density: ti.template(), X: ti.template(), dt: ti.f32, A_builder: ti.types.sparse_matrix_builder()):
         # triplet_idx = 0
         # m_triplet_idx = 0
         # m_block = ti.Matrix([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
