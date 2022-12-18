@@ -28,7 +28,8 @@ class Simulation:
         self.particle_array = np.array([])
         self.pointData_file = pointData_file
         self.boundary_pointData_file = boundary_pointData_file
-        self.emitter = Emitter(emitter_pos, emitter_radius, particles_per_second)
+        self.particles_per_second = particles_per_second
+        self.emitter = Emitter(emitter_pos, emitter_radius)
 
         self.gravity = gravity
         self.initial_fluid_velocity = initial_fluid_velocity
@@ -228,7 +229,7 @@ class Simulation:
 
     def emit_particles(self):
         vel = ti.Vector([0., self.emission_velocity, 0.], ti.f32)
-        particles = self.emitter.emit_particles(self.dt)
+        particles = self.emitter.emit_particles(self.dt, self.particles_per_second)
         for pos in particles:
             if self.num_particles[None] < self.max_num_particles:
                 self.fluid.insert_particle(pos, vel)            
@@ -376,8 +377,8 @@ class Simulation:
         laplacian_max = self.compute_field_max(self.temperatureSolver.laplacian)
 
         # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles}", end="\r")
-        print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[T_mean]: {T_mean}", end="\r")
-        # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles},[oob]:{self.num_particles[None]-num_active_particles}", end="\r")
+        # print(f"[T]:{self.current_time:.6f}, [T_max]:{T_max}, [T_min]: {T_min},[T_mean]: {T_mean}", end="\r")
+        print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[cnt]:{num_active_particles},[oob]:{self.num_particles[None]-num_active_particles}", end="\r")
         # print(f"[T]:{self.current_time:.6f},[dt]:{self.dt},[B_cnt_avg]:{B_cnt_avg:.1f},[F_cnt_avg]:{F_cnt_avg:.1f},[d_avg]:{d_avg:.1f},[P_SOL]:{(self.pressure_solve):.1f},[P_I]:{self.pressure_iteration},[D_SOL]:{self.divergence_solve:1f},[D_I]:{self.divergence_iteration},[V]:{self.viscosity_sucess}", end="\r")
 
     def frame_export(self):

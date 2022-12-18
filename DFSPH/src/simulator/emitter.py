@@ -3,12 +3,11 @@ import taichi as ti
 import random
 
 class Emitter:
-    def __init__(self, pos, radius, particles_per_second, seed = 42):
+    def __init__(self, pos, radius, seed = 42):
         self.x = pos[0]
         self.y = pos[1]
         self.z = pos[2]
         self.radius = radius
-        self.pps = particles_per_second
         self. err = 0.
         random.seed(seed)
 
@@ -22,8 +21,8 @@ class Emitter:
         # np.array([part_x, part_y, part_z], dtype = float)
         return arr
     
-    def emit_particles(self, dt):
-        num_frac = (self.pps * dt) + self.err
+    def emit_particles(self, dt, particles_per_second):
+        num_frac = (particles_per_second * dt) + self.err
         num = int(np.floor(num_frac))
         self.err = num_frac - num
         particles = []
@@ -32,10 +31,10 @@ class Emitter:
         return particles
 
 def main():
-    emitter = Emitter(0,0,0,1.,192)
+    emitter = Emitter(0,0,0,1.)
     num_emitted = 0
     for i in range(200):
-        num_emitted += len(emitter.emit_particles(0.005))
+        num_emitted += len(emitter.emit_particles(0.005,192))
     print(num_emitted)
 
 if __name__ == '__main__':
