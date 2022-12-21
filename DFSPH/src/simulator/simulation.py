@@ -18,7 +18,7 @@ class Simulation:
             result_dir="results/example/", pointData_file = "", 
             boundary_pointData_file = "", is_uniform_export = False, gravity: ti.f32 = -9.81,
             initial_fluid_velocity: ti.f32 = 0., emission_velocity: ti.f32 = 0.,
-            particles_per_second: ti.f32 = 0, t_room: ti.f32 = 25,
+            particles_per_second: ti.f32 = 0, pps_slowdown: ti.f32 = 0., t_room: ti.f32 = 25,
             room_radiation_half_time: ti.f32 = 0.5, emitter_pos = [2., 0.125, 2.], emitter_radius = 0.5,
             emission_t: ti.f32=150, init_t: ti.f32=150):
         # This is a bit of a nuisance, but the value couldn't be modified otherwise
@@ -29,6 +29,7 @@ class Simulation:
         self.pointData_file = pointData_file
         self.boundary_pointData_file = boundary_pointData_file
         self.particles_per_second = particles_per_second
+        self.pps_slowdown = pps_slowdown
         self.emitter = Emitter(emitter_pos, emitter_radius)
 
         self.gravity = gravity
@@ -230,14 +231,16 @@ class Simulation:
             self.log_state()
 
     def emit_particles(self):
-        vel = ti.Vector([self.emission_velocity, 0., self.emission_velocity], ti.f32)
-        particles = self.emitter.emit_particles(self.dt, self.particles_per_second)
-        for pos in particles:
-            if self.num_particles[None] < self.max_num_particles:
-                self.fluid.insert_particle(pos, vel)            
-                self.viscositySolver.increase_particles()
-                self.densityAndPressureSolver.increase_particles()
-                self.num_particles[None] += 1
+        vel = ti.Vector([0., self.emission_velocity, 0.], ti.f32)
+        current_pps = self.particles_per_second - self.current_time * self.pps_slowdown
+        if current_pps > 0:
+            particles = self.emitter.emit_particles(self.dt, current_pps)
+            for pos in particles:
+                if self.num_particles[None] < self.max_num_particles:
+                    self.fluid.insert_particle(pos, vel)            
+                    self.viscositySolver.increase_particles()
+                    self.densityAndPressureSolver.increase_particles()
+                    self.num_particles[None] += 1
 
     @ti.kernel
     def init_non_pressure_forces(self):
