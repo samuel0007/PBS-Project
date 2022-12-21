@@ -132,12 +132,14 @@ class Simulation:
 
         b_mu_field = ti.field(ti.f32, shape = (self.fluid.b_num_particles))
 
-        _, IDs = readParticles(self.boundary_pointData_file, request_IDs=True)
-
         b_mu_np = np.zeros((self.fluid.b_num_particles), float)
-        for i in range(IDs.shape[0]):
-            b_mu_np[i] = self.b_mu[IDs[i]]
-        print(b_mu_np)
+
+        if self.boundary_pointData_file:
+            _, IDs = readParticles(self.boundary_pointData_file, request_IDs=True)
+            for i in range(IDs.shape[0]):
+                b_mu_np[i] = self.b_mu[IDs[i]]
+        else:
+            b_mu_np.fill(self.b_mu)
         b_mu_field.from_numpy(b_mu_np)
         self.fluid.set_initial_viscosity(self.mu, b_mu_field)
         self.fluid.update_viscosity_from_temperature()
@@ -228,7 +230,7 @@ class Simulation:
             self.log_state()
 
     def emit_particles(self):
-        vel = ti.Vector([0., self.emission_velocity, 0.], ti.f32)
+        vel = ti.Vector([self.emission_velocity, 0., self.emission_velocity], ti.f32)
         particles = self.emitter.emit_particles(self.dt, self.particles_per_second)
         for pos in particles:
             if self.num_particles[None] < self.max_num_particles:
@@ -254,13 +256,13 @@ class Simulation:
         if not self.pointData_file:
             delta = self.support_radius / 2.
             num_particles_x = int(self.num_particles[None]**(1. / 3.)) + 1
-            offs = ti.Vector([1., 1., 1.]) 
+            offs = ti.Vector([0.75, 0.2, 0.75]) 
             # offs = ti.Vector([(self.bounds - num_particles_x * delta) * 0.5, (self.bounds - num_particles_x * delta) * 0.05, (self.bounds - num_particles_x * delta) * 0.5], ti.f32)
             for i in range(num_particles_x):
                 for j in range(num_particles_x):
                     for k in range(num_particles_x):
                         self.fluid.X[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([i, j, k], ti.f32) * delta + offs
-                        self.fluid.T[i * num_particles_x * num_particles_x + j * num_particles_x + k] = j*delta*100
+                        self.fluid.T[i * num_particles_x * num_particles_x + j * num_particles_x + k] = j*delta*200
 
                         # add velocity in z direction
                         # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
