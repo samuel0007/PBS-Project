@@ -63,7 +63,7 @@ def T_TO_MU(t: ti.f32) -> ti.f32:
 
 ### Initial condition and boundary condition
 
-The initial condition and boundary conditions can either be defined by a 3D numpy array of particles positions in a .npy file or by a meta file, see `src/pointDataMetaFiles/erlenmayer_half_full.txt` for an example.
+The initial condition and boundary conditions can either be defined by a 3D numpy array of particles positions in a .npy file or by a meta file, see `src/pointDataMetaFiles/flask_on_plane.txt` for an example.
 
 If the initial_condition file is leaved empty, you can define the number of particles to be generated in the simulation box by setting the `NUM_PARTICLES` parameter and it will create a cube of particles.
 
@@ -74,18 +74,19 @@ The meta files are text files with the following format:
 ```txt
 file_name.vtk // Name of the file containing the particles positions (has to be in pointDataFiles)
 1 // Alignment mode
-0. 0. 0. // Position
+0. 0. 0. // offset
 
 file_name_2.vtk
 2
 0. 0. 0.
 ```
-
+For each file named in the metafile, first the alignmode is aplied, and then the offset.
 The alignment mode can be either 1, 2 or 3.
 
-1.
-2.
-3.
+0. Do nothing for alignment.
+1. Make it so the for each coordinate, the lowest value is 0.
+2. Make it so the center of the particles is the coordinate origin.
+3. The lowest y-coordinate is 0, and the x and z coordinates are centered around the origin.
 
 ## Rendering
 
