@@ -3,8 +3,12 @@ import math
 from src.simulator.simulation import Simulation
 # from src.renderer.renderer import Renderer
 from src.renderer.pyvista_renderer import Renderer
+import os
 
-RESULT_DIR = "results/run_flask_7/" # directory has to exist, otherwise crash
+RESULT_DIR = "results/example/"
+# create result directory if it doesn't exist
+os.makedirs(RESULT_DIR, exist_ok=True)
+
 BOUNDS = 4. 
 UNIFORM_EXPORT = False
 REST_DENSITY = 300
@@ -54,7 +58,7 @@ def T_TO_MU(t: ti.f32) -> ti.f32:
     return t*10
 
 # Run Simulation
-ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=6)
+# ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=6)
 # simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,
 #     pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=UNIFORM_EXPORT, gravity=GRAVITY,
 #     initial_fluid_velocity=INITIAL_FLUID_VELOCITY, emission_velocity=EMISSION_VELOCITY,
@@ -63,7 +67,7 @@ ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=6)
 # simulation.run()
 
 
-STARTFRAME = 2292
+STARTFRAME = 0
 FRAMESTEP = 1
 RESOLUTION = [1280,720]
 
