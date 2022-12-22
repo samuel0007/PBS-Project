@@ -10,7 +10,8 @@ def readParticles_multi(filearray, align_modes = [], offsetarray = []):
     """currently only support for vtk\n
     align_mode 0(leave data as is)\n
     align_mode 1(align into origin corner)\n
-    align_mode 2(center around origin)\n"""
+    align_mode 2(center around origin)\n
+    align_mode 3(set y coordinates positive, while centering x and z coordinates)"""
     points = []
     IDs = np.array([],dtype = int)
     i = 0
@@ -30,10 +31,11 @@ def readParticles_multi(filearray, align_modes = [], offsetarray = []):
     return points, IDs
 
 def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0]), request_IDs = False):
-    """currently only support for vtk or txt (metafile)\n
+    """currently only support for vtk, npy or txt (metafile)\n
     align_mode 0(leave data as is)\n
     align_mode 1(align into origin corner)\n
-    align_mode 2(center around origin)\n"""
+    align_mode 2(center around origin)\n
+    align_mode 3(set y coordinates positive, while centering x and z coordinates)"""
     format = getFormat(file)
     if format == "txt":
         filenames = []
@@ -113,4 +115,4 @@ def main(file):
     # print(IDs)
 
 if __name__ == '__main__':
-    main(r"src\pointDataFiles\erlenmayer_smaller_ss.vtk")
+    main(r"src\pointDataFiles\tube_thinner.vtk")

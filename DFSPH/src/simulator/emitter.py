@@ -4,6 +4,7 @@ import random
 
 class Emitter:
     def __init__(self, pos, radius, seed = 42):
+        """The particle Emitter generates particle positions uniformly sampled over a circle that is parallel to the xz-plane"""
         self.x = pos[0]
         self.y = pos[1]
         self.z = pos[2]
@@ -22,6 +23,7 @@ class Emitter:
         return arr
     
     def emit_particles(self, dt, particles_per_second):
+        """Returns a list of particle positions. Returns particles_per_second * dt particles, while adding the error to the next call."""
         num_frac = (particles_per_second * dt) + self.err
         num = int(np.floor(num_frac))
         self.err = num_frac - num

@@ -41,19 +41,19 @@ class Simulation:
         else:
             self.particle_array = readParticles(pointData_file)
             points = self.particle_array
-            print("shape of array:")
-            print(points.shape)
-            x_coords = points[0:,0]
-            print("x_range: ")
-            print((min(x_coords),max(x_coords)))
+            # print("shape of array:")
+            # print(points.shape)
+            # x_coords = points[0:,0]
+            # print("x_range: ")
+            # print((min(x_coords),max(x_coords)))
 
-            y_coords = points[0:,1]
-            print("y_range: ")
-            print((min(y_coords),max(y_coords)))
+            # y_coords = points[0:,1]
+            # print("y_range: ")
+            # print((min(y_coords),max(y_coords)))
 
-            z_coords = points[0:,2]
-            print("z_range: ")
-            print((min(z_coords),max(z_coords)))
+            # z_coords = points[0:,2]
+            # print("z_range: ")
+            # print((min(z_coords),max(z_coords)))
             # append to the particle array itself
             # self.particle_array = np.append(self.particle_array, self.particle_array, axis=0)
             self.num_particles[None] = self.particle_array.shape[0]
@@ -136,6 +136,8 @@ class Simulation:
         _, IDs = readParticles(self.boundary_pointData_file, request_IDs=True)
 
         b_mu_np = np.zeros((self.fluid.b_num_particles), float)
+
+        # different viscosity for ground and containerS
         for i in range(IDs.shape[0]):
             b_mu_np[i] = self.b_mu[IDs[i]]
         print(b_mu_np)
@@ -268,6 +270,7 @@ class Simulation:
                         # add velocity in z direction
                         # self.fluid.V[i * num_particles_x * num_particles_x + j * num_particles_x + k] = ti.Vector([10., 0., 10.], ti.f32)
         else:
+            # cast data into the desired format
             offset = ti.Vector([0.,0.,0.],ti.f32)
             for i in range(self.num_particles[None]):
                 x = self.particle_field[i,0]

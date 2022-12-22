@@ -164,6 +164,7 @@ class FluidModel:
             
     @ti.func
     def get_cell(self, pos: ti.types.vector(3, ti.f32)) -> Tuple[bool, Tuple[int, int, int]]:
+        """returns the cell that a coordinate belongs to. If out of bounds, the bool return value will be False."""
         check = True
         x_cell = int( (pos[0] - self.x_min) / (self.x_max - self.x_min) * self.num_x_cells)
         y_cell = int( (pos[1] - self.y_min) / (self.y_max - self.y_min) * self.num_y_cells)
@@ -201,6 +202,9 @@ class FluidModel:
 
     @ti.kernel
     def update_b_grid(self):
+        """places boundary particle indices into the cell according to their position"""
+
+        # Here we use a sparse taichi datastructure such that empty cells don't use up space.
         for i,j,k in self.b_grid_snode:
             ti.deactivate(self.b_grid_snode, [i,j,k])
 
@@ -223,11 +227,13 @@ class FluidModel:
 
     @ti.kernel
     def update_neighbor_list(self):
+        """neighbor_list stores the neighboring fluid particles for every fluid particle"""
         for i in range(self.num_particles[None]):
             ti.deactivate(self.neighbor_snode, i)
             ti.activate(self.neighbor_snode, i)
 
 
+        # search neighbors in surrounding 27 cells
         h2 = self.support_radius * self.support_radius
         for i in range(self.num_particles[None]):
             pos_i = self.X[i]
@@ -247,6 +253,7 @@ class FluidModel:
 
     @ti.kernel
     def update_b_neighbor_list(self):
+        """b_neighbor_list stores the neighboring boundary particles for every fluid particle"""
         for i in range(self.num_particles[None]):
             ti.deactivate(self.b_neighbor_snode, i)
             ti.activate(self.b_neighbor_snode, i)
