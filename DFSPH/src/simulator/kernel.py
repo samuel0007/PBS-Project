@@ -1,6 +1,8 @@
 import taichi as ti
 import math
 
+"""Kernal functions found in the literature annd their gradients """
+
 @ti.data_oriented
 class Poly6:
     def __init__(self, support_radius: ti.f32):
