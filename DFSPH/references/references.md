@@ -54,18 +54,27 @@ Multiple-Fluid SPH Simulation Using a Mixture Model
 
 https://splishsplash.readthedocs.io/en/latest/about.html
 
+We also got the dragon model from splishsplash
+
 ## Tool for Surface/Volume sampling
 
 Surface sampling used for boundary conditions.
 
 Volume sampling used for initial conditions.
 
-https://splishsplash.readthedocs.io/en/latest/SurfaceSampling.html
+https://splishsplash.readthedocs.io/en/latest/SurfaceSampling.html\
 https://splishsplash.readthedocs.io/en/latest/VolumeSampling.html
+
+(For surface sampling, we modified the source code by copying stuff \
+from the VolumsSampling folder such that it can output vtk files)
 
 # SplishSplash Interesting files
 
 ## SPHKernels.h
 
 Contains common SPH kernels as well as their gradients.
+
+## Flask model
+
+https://www.turbosquid.com/3D-Models/free-glass-erlenmayer-flask-3d-model/433384
 
