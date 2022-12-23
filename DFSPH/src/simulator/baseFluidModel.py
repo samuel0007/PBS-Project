@@ -7,6 +7,7 @@ from .kernel import CubicSpline, Poly6
 class FluidModel:
     def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, max_dt: ti.f32, density0: ti.f32, support_radius: ti.f32, mass: ti.f32, x_min: ti.f32 = -1.5, x_max: ti.f32 = 1.5, \
                           y_min: ti.f32 = -1.5, y_max: ti.f32 = 1.5, z_min: ti.f32 = -1.5, z_max: ti.f32 = 1.5, t_to_mu=lambda t:t):
+        """class that describes the fluid with all particle positions and handles neighbor search"""
         self.num_particles = ti.field(ti.i32, shape = ())
         self.num_particles[None] = num_particles
         self.max_num_particles = max_num_particles

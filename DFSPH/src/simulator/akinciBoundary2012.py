@@ -6,22 +6,21 @@ import numpy as np
 @ti.data_oriented
 class BoundaryModel:
     def __init__(self, bounds: ti.f32, support_radius: ti.f32, pointData_file = ""):
+        """Class that contains the boundary particles based on the paper by Akinci et al. (2012)"""
         self.pointData_file = pointData_file
         self.bounds = bounds
         self.support_radius = support_radius
         self.resolution = self.support_radius / 4
-        # self.resolution = resolution
         self.num_particles_per_axis = int(bounds / self.resolution)
         self.num_particles_per_face = self.num_particles_per_axis *self.num_particles_per_axis 
-        # self.num_particles = 6 * self.num_particles_per_face
 
-        # self.m_X = ti.Vector.field(3, dtype=ti.f32, shape=(6, self.num_particles_per_axis, self.num_particles_per_axis))
-        # self.m_M = ti.field(ti.f32, shape=(6, self.num_particles_per_axis, self.num_particles_per_axis))
+        self.m_X = ti.Vector.field(3, dtype=ti.f32, shape=(6, self.num_particles_per_axis, self.num_particles_per_axis))
+        self.m_M = ti.field(ti.f32, shape=(6, self.num_particles_per_axis, self.num_particles_per_axis))
         self.num_particles = 0
         self.particle_array = np.array([])
 
         if self.pointData_file == "":
-            self.num_particles = 5 * self.num_particles_per_face
+            self.num_particles = 6 * self.num_particles_per_face
         else:
             self.particle_array = readParticles(self.pointData_file)
             self.num_particles = self.particle_array.shape[0]
@@ -31,8 +30,8 @@ class BoundaryModel:
         if pointData_file != "":
             self.particle_field.from_numpy(self.particle_array)
 
-        self.m_X = ti.Vector.field(3, dtype=ti.f32, shape=(5, self.num_particles_per_axis, self.num_particles_per_axis))
-        self.m_M = ti.field(ti.f32, shape=(5, self.num_particles_per_axis, self.num_particles_per_axis))
+        # self.m_X = ti.Vector.field(3, dtype=ti.f32, shape=(5, self.num_particles_per_axis, self.num_particles_per_axis))
+        # self.m_M = ti.field(ti.f32, shape=(5, self.num_particles_per_axis, self.num_particles_per_axis))
        
         self.X = ti.Vector.field(3, dtype=ti.f32, shape=(self.num_particles))
         self.M = ti.field(ti.f32, shape=(self.num_particles))
@@ -42,7 +41,7 @@ class BoundaryModel:
 
     @ti.kernel
     def generate_boundary_particles(self):
-        # Generate particles on the boundary
+        """If no file has been supplied, generate boundary particles as a uniform grid at the faces of the simulation domain."""
         if self.pointData_file == "":
             for face, x, y in self.m_X:
                 if face == 0:
@@ -55,8 +54,8 @@ class BoundaryModel:
                     self.m_X[face, x, y] = [self.bounds, x * self.resolution, y * self.resolution]
                 elif face == 4:
                     self.m_X[face, x, y] = [x * self.resolution, 0, y * self.resolution]
-                # elif face == 5:
-                #     self.m_X[face, x, y] = [x * self.resolution, self.bounds, y * self.resolution]
+                elif face == 5:
+                    self.m_X[face, x, y] = [x * self.resolution, self.bounds, y * self.resolution]
         else:
             for i in range(self.num_particles):
                 x = self.particle_field[i,0]
@@ -74,15 +73,15 @@ class BoundaryModel:
             self.compute_M_kernel(density0)
 
     # Compute mass of each boundary particle, O(n^2) for now, but is only used at init.
-    # Should be optimized when rest density of fluid is not constant
     @ti.kernel
     def compute_M_kernel(self, density0: ti.f32):
+        """Computes the mass of each particle as described by Akinci et al. (2012)"""
         coefficient = 10
         if self.pointData_file == "":
             for face, x, y in self.m_X:
                 denom = 0.
                 local_pos = self.m_X[face, x, y]
-                for other_face in range(5):
+                for other_face in range(6):
                 # for other_face in range(6):
                     for other_x in range(self.num_particles_per_axis):
                         for other_y in range(self.num_particles_per_axis):

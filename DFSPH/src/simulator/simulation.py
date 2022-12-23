@@ -21,6 +21,7 @@ class Simulation:
             particles_per_second: ti.f32 = 0, pps_slowdown: ti.f32 = 0., t_room: ti.f32 = 25,
             room_radiation_half_time: ti.f32 = 0.5, emitter_pos = [2., 0.125, 2.], emitter_radius = 0.5,
             emission_t: ti.f32=150, init_t: ti.f32=150):
+        """Class that contains the main simulation step"""
         # This is a bit of a nuisance, but the value couldn't be modified otherwise
         # Now, num_particles can be accessed as self.num_particles[None]
         self.num_particles = ti.field(ti.i32, shape = ())
@@ -64,7 +65,7 @@ class Simulation:
             if self.max_num_particles > self.num_particles[None]:
                 padding_length = self.max_num_particles - self.num_particles[None]
                 padding = np.zeros((padding_length, 3), dtype = float)
-                print(padding.shape)
+                # print(padding.shape)
                 self.particle_array = np.append(self.particle_array, padding, axis = 0)
             self.particle_field.from_numpy(self.particle_array)
 
@@ -96,11 +97,11 @@ class Simulation:
             support_radius=self.support_radius,
             mass=self.mass,
             x_min=0,
-            x_max=self.bounds,
+            x_max=self.bounds+0.1,
             y_min=0,
-            y_max=self.bounds,
+            y_max=self.bounds+0.1,
             z_min=0,
-            z_max=self.bounds,
+            z_max=self.bounds+0.1,
             t_to_mu=self.t_to_mu,
         )
         self.boundary = BoundaryModel(self.bounds, self.fluid.support_radius, pointData_file = boundary_pointData_file)
@@ -139,10 +140,12 @@ class Simulation:
             _, IDs = readParticles(self.boundary_pointData_file, request_IDs=True)
     
         # different viscosity for ground and containerS
-        for i in range(IDs.shape[0]):
+        if self.boundary_pointData_file:
+            _, IDs = readParticles(self.boundary_pointData_file, request_IDs=True)
+            for i in range(IDs.shape[0]):
                 b_mu_np[i] = self.b_mu[IDs[i]]
         else:
-            b_mu_np.fill(self.b_mu)
+            b_mu_np.fill(self.b_mu[0])
         b_mu_field.from_numpy(b_mu_np)
         self.fluid.set_initial_viscosity(self.mu, b_mu_field)
         self.fluid.update_viscosity_from_temperature()
@@ -246,7 +249,6 @@ class Simulation:
 
     @ti.kernel
     def init_non_pressure_forces(self):
-        # this should probebly be self.max_num_particles 
         for i in range(self.max_num_particles):
             self.non_pressure_forces[i] = ti.Vector([0., self.gravity, 0.])
 
@@ -257,7 +259,8 @@ class Simulation:
             self.fluid.V[i] += self.dt * self.non_pressure_forces[i] / self.fluid.mass
 
     @ti.kernel
-    def set_initial_fluid_condition(self):  
+    def set_initial_fluid_condition(self):
+        """If no particle file has been supplied, make a regular grid of particles"""
         if not self.pointData_file:
             delta = self.support_radius / 2.
             num_particles_x = int(self.num_particles[None]**(1. / 3.)) + 1

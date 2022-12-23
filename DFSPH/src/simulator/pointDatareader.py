@@ -7,7 +7,7 @@ def getFormat(file: str):
     return file[file.find('.') + 1:]
 
 def readParticles_multi(filearray, align_modes = [], offsetarray = []):
-    """currently only support for vtk\n
+    """Allowed formats: vtk, npy or txt(metafile)\n
     align_mode 0(leave data as is)\n
     align_mode 1(align into origin corner)\n
     align_mode 2(center around origin)\n
@@ -31,11 +31,12 @@ def readParticles_multi(filearray, align_modes = [], offsetarray = []):
     return points, IDs
 
 def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0]), request_IDs = False):
-    """currently only support for vtk, npy or txt (metafile)\n
+    """Allowed formats: vtk, npy or txt (metafile)\n
     align_mode 0(leave data as is)\n
     align_mode 1(align into origin corner)\n
     align_mode 2(center around origin)\n
-    align_mode 3(set y coordinates positive, while centering x and z coordinates)"""
+    align_mode 3(set y coordinates positive, while centering x and z coordinates)\n
+    if request_IDs==True, it will also return an array that describes for each particle, which file from the metafile it belongs to. (useful if we want to set different viscosities for flask and ground.)"""
     format = getFormat(file)
     if format == "txt":
         filenames = []
@@ -66,9 +67,6 @@ def readParticles(file, align_mode = 0, offset = np.array([0.0, 0.0, 0.0]), requ
     if format == "vtk":
         mesh = pv.read(file)
         points = mesh.points
-    elif format == "bgeo":
-        # TODO, may not be needed
-        pass
     elif format == "npy":
         points = np.load(file)
         # slice away zeroes (could be wrong)
