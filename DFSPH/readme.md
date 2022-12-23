@@ -25,7 +25,8 @@ The following parameters can be changed in `main.py`:
 ```python
 # Simulation parameters
 BOUNDS = 4. # Size of the simulation box
-UNIFORM_EXPORT = False # If true, will export the density field on an uniform grid inside the bounds
+UNIFORM_EXPORT = False # If true, will export the density field on an uniform grid inside the bounds, necessary if we want to do surface rendering
+SURFACE_RENDER = False # If true, will render the isosurface of the density field.
 REST_DENSITY = 300
 RADIUS = 0.025 # Particle radius
 SUPPORT_RADIUS = 4*RADIUS # Kernel support radius
@@ -40,8 +41,9 @@ GAMMA = 1e-1 # Temperature diffusion coefficient. If too high, might expode do t
 INITIAL_FLUID = r"src\pointDataFiles\erlenmayer_half_full.npy" # Initial condition file. See under in initial condition section for more detail.
 BOUNDARY = r"src\pointDataMetaFiles\flask_on_plane.txt" # Boundary file. See under in initial condition section for more detail.
 
-# Those are upwards velocities
+
 GRAVITY = -5
+# Those are upwards velocities
 INITIAL_FLUID_VELOCITY = 10. # Initial velocity of the fluid
 EMISSION_VELOCITY = 10. # Velocity of the emitted particles
 PARTICLES_PER_SECOND = 3000
@@ -49,7 +51,7 @@ PPS_SLOWDOWN = 1500 # Slowdown  of the emission rate per second
 EMITTER_POS = [2., 0.2, 2.] # Emitter position
 EMITTER_RADIUS = 0.07 # Emitter radius, circular emission
 
-B_MU = [2000, 3000, 10000] # Boundary viscosity, give different boundary visocities to different boundaries. has to be an array with the same length of boundary files. See under in boundary condition section for more detail. Can also simply be a single scalar value and all boundary particles will have same viscosity.
+B_MU = [2500, 25000] # Boundary viscosity, give different boundary visocities to different boundaries. has to be an array with the same length as the number of boundary files. See under in boundary condition section for more detail.
 
 T_ROOM = 25
 ROOM_RADIATION_HALF_TIME = 2 # If too low, may explode. Min tested working value: 0.01
@@ -88,6 +90,24 @@ The alignment mode can be either 1, 2 or 3.
 2. Make it so the center of the particles is the coordinate origin.
 3. The lowest y-coordinate is 0, and the x and z coordinates are centered around the origin.
 
+## Logger
+
+During the simulation, the following values will be output to terminal:
+
+T: current time
+
+dt: current timestep
+
+B_cnt_avg: average number of boundary neighbors for fluid particles
+
+F_cnt_avg: average number of fluid neighbors for fluid particles
+
+d_avg: average density
+
+cnt: number of active particles
+
+oob: number of particles that went out of bounds
+
 ## Rendering
 
 ffmpeg command to convert frames to video:
@@ -95,3 +115,10 @@ ffmpeg command to convert frames to video:
 ```bash
 ffmpeg -framerate 24 -i frames/%06d.png -pix_fmt yuv420p output.mp4
 ```
+The videos in presentation_results were made with -framerate 120
+
+## Shown results
+
+The above parameters were used to make the video flask_video.mp4. flask_video2.mp4 uses the same parameters except that B_MU=[4000,25000] (i.e., higher flask viscosity),\
+ causing the foam to stick more to the flask. tube_video.mp4 showcases a higher emission rate (9000 particles_per_second, with 0 slowdown), which is enabled by the different geometry.\
+ old_videos showcases previous steps of our progress.

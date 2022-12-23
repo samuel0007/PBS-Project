@@ -1,6 +1,6 @@
 tube_small.vtk
 3
-2. 0.1 2.
+2. 0. 2.
 
 plane_xz_2by2_fine.vtk
 1

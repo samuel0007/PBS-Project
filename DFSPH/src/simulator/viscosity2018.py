@@ -10,6 +10,7 @@ from typing import List, Tuple
 @ti.data_oriented
 class ViscositySolver:
     def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, fluid: FluidModel):
+        """Viscosity solver based on the paper by Weiler et al. (2018)"""
         self.num_particles = ti.field(ti.i32, shape = ())
         self.num_particles[None] = num_particles
         self.max_num_particles = max_num_particles

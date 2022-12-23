@@ -4,6 +4,7 @@ from .baseFluidModel import FluidModel
 @ti.data_oriented
 class TemperatureSolver:
     def __init__(self, gamma: ti.f32, t_room: ti.f32, room_radiation_half_time: ti.f32, fluid: FluidModel):
+        """Temperature solver based on the paper by Weiler et al. (2018)"""
         self.gamma = gamma
         self.fluid = fluid
         self.t_room = t_room

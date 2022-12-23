@@ -6,6 +6,7 @@ from .kernel import CubicSpline
 @ti.data_oriented
 class DensityAndPressureSolver:
     def __init__(self, num_particles: ti.i32, max_num_particles: ti.i32, fluid: FluidModel):
+        """DFSPH solver based on the paper by Bender et al. (2017)"""
         self.max_num_particles = max_num_particles
         self.num_particles = ti.field(ti.i32, shape = ())
         self.num_particles[None] = num_particles
