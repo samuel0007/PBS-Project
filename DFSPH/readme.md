@@ -120,5 +120,5 @@ The videos in presentation_results were made with -framerate 120
 ## Shown results
 
 The above parameters were used to make the video flask_video.mp4. flask_video2.mp4 uses the same parameters except that B_MU=[4000,25000] (i.e., higher flask viscosity),\
- causing the foam to stick more to the flask. tube_video.mp4 showcases a higher emission rate (9000 particles_per_second, with 0 slowdown), which is enabled by the different geometry.\
+ causing the foam to stick more to the flask. tube_video.mp4 showcases a higher emission rate and viscosity (9000 particles_per_second, with 0 slowdown, viscosity constantly at 4500), which is enabled by the different geometry.\
  old_videos showcases previous steps of our progress.
