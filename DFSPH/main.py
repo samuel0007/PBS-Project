@@ -5,12 +5,13 @@ from src.simulator.simulation import Simulation
 from src.renderer.pyvista_renderer import Renderer
 import os
 
-RESULT_DIR = "results/example/"
+RESULT_DIR = "results/run_trash/"
 # create result directory if it doesn't exist
 os.makedirs(RESULT_DIR, exist_ok=True)
 
 BOUNDS = 4. 
-UNIFORM_EXPORT = False
+UNIFORM_EXPORT = True
+SURFACE_RENDER = False
 REST_DENSITY = 300
 RADIUS = 0.025
 SUPPORT_RADIUS = 4*RADIUS
@@ -32,6 +33,7 @@ GAMMA = 1e-1 # If too high, might expode do to euler explicit integration. Max t
 
 INITIAL_FLUID = r"src\pointDataFiles\erlenmayer_half_full.npy"
 BOUNDARY = r"src\pointDataMetaFiles\flask_on_plane.txt"
+BOUNDARY = ""
 
 # INITIAL_FLUID = r"src\pointDataMetaFiles\empty.txt"
 
@@ -45,7 +47,7 @@ EMITTER_POS = [2., 0.2, 2.]
 EMITTER_RADIUS = 0.07
 
 MU = 2500
-B_MU_FLASK = 2500
+B_MU_FLASK = 4000
 B_MU_GROUND = 25000
 
 T_ROOM = 25
@@ -58,13 +60,13 @@ def T_TO_MU(t: ti.f32) -> ti.f32:
     return t*10
 
 # Run Simulation
-# ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=6)
-# simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,
-#     pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=UNIFORM_EXPORT, gravity=GRAVITY,
-#     initial_fluid_velocity=INITIAL_FLUID_VELOCITY, emission_velocity=EMISSION_VELOCITY,
-#     particles_per_second=PARTICLES_PER_SECOND, pps_slowdown=PPS_SLOWDOWN, t_room=T_ROOM, room_radiation_half_time=ROOM_RADIATION_HALF_TIME,
-#     emitter_pos=EMITTER_POS, emitter_radius=EMITTER_RADIUS, t_to_mu=T_TO_MU, emission_t=EMISSION_T, init_t=INIT_T)
-# simulation.run()
+ti.init(arch=ti.cpu, debug=False, cpu_max_num_threads=6)
+simulation = Simulation(NUM_PARTICLES, MAX_TIME, max_dt=MAX_DT, mass=MASS, rest_density=REST_DENSITY, support_radius=SUPPORT_RADIUS, mu=MU, b_mu=[B_MU_FLASK, B_MU_GROUND],  gamma=GAMMA, bounds=BOUNDS, is_frame_export=True, debug=True, result_dir=RESULT_DIR,
+    pointData_file=INITIAL_FLUID, boundary_pointData_file=BOUNDARY, is_uniform_export=UNIFORM_EXPORT, gravity=GRAVITY,
+    initial_fluid_velocity=INITIAL_FLUID_VELOCITY, emission_velocity=EMISSION_VELOCITY,
+    particles_per_second=PARTICLES_PER_SECOND, pps_slowdown=PPS_SLOWDOWN, t_room=T_ROOM, room_radiation_half_time=ROOM_RADIATION_HALF_TIME,
+    emitter_pos=EMITTER_POS, emitter_radius=EMITTER_RADIUS, t_to_mu=T_TO_MU, emission_t=EMISSION_T, init_t=INIT_T)
+simulation.run()
 
 
 STARTFRAME = 0
@@ -72,6 +74,6 @@ FRAMESTEP = 1
 RESOLUTION = [1280,720]
 
 # Render Simulation
-renderer = Renderer(result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=True, render_density=False, render_temperature=True, mass=MASS, start_frame=STARTFRAME, framestep=FRAMESTEP, render_uniform=UNIFORM_EXPORT, resolution=RESOLUTION)
+renderer = Renderer(result_dir=RESULT_DIR, radius=RADIUS*0.99, SHOW=True, render_boundary=True, render_density=False, render_temperature=True, mass=MASS, start_frame=STARTFRAME, framestep=FRAMESTEP, render_uniform=SURFACE_RENDER, resolution=RESOLUTION)
 # renderer = Renderer(bounds=BOUNDS, result_dir=RESULT_DIR+r"\data", radius=RADIUS*0.99, SHOW=True, render_boundary=False, render_density=False, mass=MASS, start_frame=80)
 renderer.render()
